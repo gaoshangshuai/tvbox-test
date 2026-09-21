@@ -1,14 +1,14 @@
 {
-   "spider": "http://oss4liview.moji.com/thd_file/2026/09/17/0f2c4f87c3b356c5510931d8afc13412.jpg;md5;f7cb9597d1048a4ad683fcc8a03a13ec",
+  "spider": "http://oss4liview.moji.com/thd_file/2026/09/17/0f2c4f87c3b356c5510931d8afc13412.jpg;md5;f7cb9597d1048a4ad683fcc8a03a13ec",
   "sites": [
     {
-      "key": "小苹果",
-      "name": "🍎主力源",
+      "key": "WexAiGuaZi",
+      "name": "💥瓜子┃秒播💥",
       "type": 3,
-      "api": "csp_LiteApple",
+      "api": "csp_WexAiGuaZiGuard",
       "searchable": 1,
       "quickSearch": 1,
-      "filterable": 1
+      "changeable": 0
     }
   ]
 }
