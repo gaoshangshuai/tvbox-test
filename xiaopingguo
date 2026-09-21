@@ -1,0 +1,14 @@
+{
+  "spider": "https://github.com/YuanHsing/freed/raw/master/TVBox/MaooXB2/XBiubiuLA4.jar",
+  "sites": [
+    {
+      "key": "小苹果",
+      "name": "🍎主力源",
+      "type": 3,
+      "api": "csp_LiteApple",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1
+    }
+  ]
+}
