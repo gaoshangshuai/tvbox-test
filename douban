@@ -1,0 +1,13 @@
+{
+  "sites": [
+    {
+      "key": "douban",
+      "name": "豆瓣",
+      "type": 1,
+      "api": "http://caiji.dyttzyapi.com/api.php/provide/vod/at/xml/",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1
+    }
+  ]
+}
