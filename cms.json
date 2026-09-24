@@ -1,4 +1,5 @@
 {
+  "_note": "xptv支持vod，xml格式不识别，统一用json格式",
   "sites": [
     {
       "key": "dyttzy",
