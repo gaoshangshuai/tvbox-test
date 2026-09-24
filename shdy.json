@@ -1,10 +1,10 @@
 {
   "sites": [
       {
-      "key": "saohuo",
       "name": "燒火電影",
       "type": 3,
       "api": "csp_saohuo",
       "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/saohuo.js"
     }
   ]
+ }
