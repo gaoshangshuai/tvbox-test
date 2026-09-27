@@ -15,11 +15,11 @@ let appConfig = {
 
 async function getConfig() {
     let config = appConfig
+    // 只保留“娱乐天地”分类
     config.tabs = [
-        // 只保留“一起看”分类
         {
             id: 'yqk',
-            name: '一起看',
+            name: '娱乐天地',
             ext: {
                 id: 'yqk',
             },
@@ -33,7 +33,7 @@ async function getCards(ext) {
     ext = argsify(ext)
     let cards = []
     let { id, page = 1 } = ext
-    if (id === 'fav') return jsonify({ list: [] })
+    if (id === 'fav') return jsonify({ list: [] }) // 收藏需要登录，暂不实现
 
     const url = `https://m.douyu.com/api/room/list?page=${page}&type=${id}`
 
@@ -42,11 +42,6 @@ async function getCards(ext) {
     })
 
     argsify(data).data.list.forEach((e) => {
-        // 增加过滤逻辑：只保留“一起看”分类的直播间
-        // 如果发现列表为空，可能是接口返回的字段名不同，可以尝试打印 console.log(e) 查看具体字段
-        const cateName = e.cate2 || e.cateName || e.gameName || ''
-        if (!cateName.includes('一起看')) return
-
         cards.push({
             vod_id: e.rid.toString(),
             vod_name: e.roomName,
