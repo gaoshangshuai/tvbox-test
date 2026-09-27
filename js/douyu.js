@@ -16,12 +16,83 @@ let appConfig = {
 async function getConfig() {
     let config = appConfig
     config.tabs = [
-        // 只保留“一起看”分类
+        // {
+        //     id: 'fav',
+        //     name: '⭐ 我的收藏',
+        //     ext: {
+        //         id: 'fav',
+        //     },
+        //     ui: 1,
+        // },
         {
             id: 'yqk',
-            name: '一起看',
+            name: '娱乐天地',
             ext: {
                 id: 'yqk',
+            },
+            ui: 1,
+        },
+        {
+            id: 'LOL',
+            name: '网游竞技',
+            ext: {
+                id: 'LOL',
+            },
+            ui: 1,
+        },
+        {
+            id: 'TVgame',
+            name: '单机热游',
+            ext: {
+                id: 'TVgame',
+            },
+            ui: 1,
+        },
+        {
+            id: 'wzry',
+            name: '手游休闲',
+            ext: {
+                id: 'wzry',
+            },
+            ui: 1,
+        },
+        {
+            id: 'yz',
+            name: '颜值',
+            ext: {
+                id: 'yz',
+            },
+            ui: 1,
+        },
+        {
+            id: 'smkj',
+            name: '科技文化',
+            ext: {
+                id: 'smkj',
+            },
+            ui: 1,
+        },
+        {
+            id: 'yiqiwan',
+            name: '语音互动',
+            ext: {
+                id: 'yiqiwan',
+            },
+            ui: 1,
+        },
+        {
+            id: 'yyzs',
+            name: '语音直播',
+            ext: {
+                id: 'yyzs',
+            },
+            ui: 1,
+        },
+        {
+            id: 'znl',
+            name: '正能量',
+            ext: {
+                id: 'znl',
             },
             ui: 1,
         },
@@ -33,7 +104,7 @@ async function getCards(ext) {
     ext = argsify(ext)
     let cards = []
     let { id, page = 1 } = ext
-    if (id === 'fav') return jsonify({ list: [] })
+    if (id === 'fav') return jsonify({ list: [] }) // 收藏需要登录，暂不实现
 
     const url = `https://m.douyu.com/api/room/list?page=${page}&type=${id}`
 
@@ -42,11 +113,7 @@ async function getCards(ext) {
     })
 
     argsify(data).data.list.forEach((e) => {
-        // 增加过滤逻辑：只保留“一起看”分类的直播间
-        // 如果发现列表为空，可能是接口返回的字段名不同，可以尝试打印 console.log(e) 查看具体字段
-        const cateName = e.cate2 || e.cateName || e.gameName || ''
-        if (!cateName.includes('一起看')) return
-
+        // if (e.type != 1) return
         cards.push({
             vod_id: e.rid.toString(),
             vod_name: e.roomName,
@@ -122,6 +189,7 @@ async function getTracks(ext) {
         }
 
         // 获取所有 CDN 线路 + 完整画质
+        // 先获取一次拿到 cdnsWithName 和 multirates
         const firstRes = await $fetch.post(
             `https://www.douyu.com/lapi/live/getH5PlayV1/${id}`,
             toQueryString({ ...basePost, rate: '0' }),
