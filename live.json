@@ -4,7 +4,7 @@
             "name": "斗鱼一起看",
             "type": 3,
             "api": "csp_douyu",
-            "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/douyu.js"
+            "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/Yswag/xptv-extensions/refs/heads/main/js/huya.js"
         }
     ]
 }
