@@ -24,18 +24,27 @@ async function getCards(ext) {
     let cards = [];
     let { id, page = 1 } = ext;
 
-    const url = `${appConfig.site}/type/${id}-${page}.html`;
+    // 根据你发的 HTML 确认：第一页不带页码，第二页开始是 -2, -3...
+    let url;
+    if (page === 1) {
+        url = `${appConfig.site}/type/${id}.html`;
+    } else {
+        url = `${appConfig.site}/type/${id}-${page}.html`;
+    }
+
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
-    // 用 href 包含 /anime/ 来定位卡片，避免 class 随机变化
+    // 真实结构：卡片是 <a class="JIHA_... lazyload" href="/anime/xxx.html">
+    // 用 href 包含 /anime/ 来定位，避免随机 class 失效
     $('a[href*="/anime/"]').each((_, element) => {
         const href = $(element).attr('href');
         const title = $(element).attr('title');
         const cover = $(element).attr('data-original');
+        // 更新状态在最后一个 span 的 b 标签里，如“已完结”、“1180集”
         const remark = $(element).find('span:last-child b').text().trim();
 
-        // 去重（防止同一张卡片被抓两次）
+        // 去重：同一张卡片可能出现两次（一个外层，一个内层）
         if (href && title && !cards.some(c => c.vod_id === href)) {
             cards.push({
                 vod_id: href,
@@ -58,7 +67,7 @@ async function getTracks(ext) {
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
-    // 尝试多种常见播放列表选择器
+    // 详情页的播放列表可能用这些选择器，按顺序尝试
     const playlistSelectors = [
         '.play-list a',
         '.module-play-list a',
@@ -67,6 +76,8 @@ async function getTracks(ext) {
         'a[href*="/play/"]',
         'a[href*="/watch/"]',
         '.content-playlist a',
+        '.playlist a',
+        '.fed-play-list a',
     ];
 
     let found = false;
@@ -85,11 +96,11 @@ async function getTracks(ext) {
                 }
             });
             found = true;
-            break; // 找到有效选择器后停止
+            break;
         }
     }
 
-    // 如果没找到剧集列表，当作电影处理
+    // 如果没找到剧集列表，就当作电影处理，直接把详情页当播放页
     if (!found || tracks.length === 0) {
         tracks.push({
             name: '播放',
@@ -113,16 +124,14 @@ async function getPlayinfo(ext) {
     // 方法1：直接找 video 标签
     let playUrl = $('video source').attr('src') || $('video').attr('src');
 
-    // 方法2：查找 player_aaaa 变量
+    // 方法2：查找 player_aaaa 变量（苹果CMS常见）
     if (!playUrl) {
         const match = data.match(/player_aaaa\s*=\s*({[^}]+})/);
         if (match) {
             try {
                 const playerData = JSON.parse(match[1]);
                 playUrl = playerData.url;
-            } catch (e) {
-                // ignore
-            }
+            } catch (e) {}
         }
     }
 
@@ -134,7 +143,7 @@ async function getPlayinfo(ext) {
         }
     }
 
-    // 方法4：查找 player_aaaa 使用 url 字段
+    // 方法4：查找通用 url 字段
     if (!playUrl) {
         const urlMatch = data.match(/["']url["']\s*:\s*["']([^"']+)["']/);
         if (urlMatch) {
@@ -142,8 +151,8 @@ async function getPlayinfo(ext) {
         }
     }
 
+    // 处理相对路径
     if (playUrl) {
-        // 有些链接可能是相对路径
         if (playUrl.startsWith('//')) {
             playUrl = 'https:' + playUrl;
         } else if (playUrl.startsWith('/')) {
@@ -161,7 +170,8 @@ async function search(ext) {
     let text = encodeURIComponent(ext.text);
     let page = ext.page || 1;
 
-    const url = `${appConfig.site}/vodsearch/${text}----------${page}---.html`;
+    // 搜索路径：/search/关键词-------------.html
+    const url = `${appConfig.site}/search/${text}-------------.html`;
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
