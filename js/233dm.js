@@ -54,47 +54,71 @@ async function getCards(ext) {
 async function getTracks(ext) {
     ext = argsify(ext);
     let url = ext.url;
-    let tracks = [];
+    let groups = [];
 
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
-    // 广泛匹配剧集按钮：链接含 /play/ /watch/ /vod/，或文本是“第X集/话/期”或纯数字
-    $('a').each((_, element) => {
-        const href = $(element).attr('href') || '';
-        const text = $(element).text().trim();
-        if (!href || !text) return;
-
-        const isPlayLink = href.includes('/play/') || href.includes('/watch/') || href.includes('/vod/');
-        const isEpisodeText = /第[\d一二三四五六七八九十百]+[集话期]/.test(text) || /^\d+$/.test(text);
-
-        if (isPlayLink || isEpisodeText) {
-            tracks.push({
-                name: text,
-                pan: '',
-                ext: { url: href.startsWith('http') ? href : `${appConfig.site}${href}` },
-            });
+    // 1. 提取线路名称（如：天堂、精品、暴风、量子）
+    let lineNames = [];
+    $('.play-source-tab a, .nav-tabs a, .playlist-tab a, .source-tab a, .module-tab-item').each((_, el) => {
+        const name = $(el).text().trim();
+        if (name && !lineNames.includes(name)) {
+            lineNames.push(name);
         }
     });
+    if (lineNames.length === 0) lineNames.push('默认线路');
 
-    // 去重
-    const seen = new Set();
-    tracks = tracks.filter(t => {
-        if (seen.has(t.ext.url)) return false;
-        seen.add(t.ext.url);
-        return true;
+    // 2. 按线路抓取剧集链接
+    let allTracks = [];
+    $('a[href*="/play/"]').each((_, el) => {
+        const href = $(el).attr('href');
+        const text = $(el).text().trim();
+        if (!href || !text) return;
+
+        // 解析线路ID（从链接中提取，如 /play/xxx-1-1.html 里的 1）
+        const match = href.match(/-(\d+)-\d+\.html/);
+        const lineId = match ? parseInt(match[1]) : 0;
+
+        allTracks.push({
+            name: text,
+            pan: '',
+            lineId: lineId,
+            url: href.startsWith('http') ? href : `${appConfig.site}${href}`
+        });
     });
 
-    // 如果没找到剧集列表，当作电影处理
-    if (tracks.length === 0) {
-        tracks.push({
-            name: '播放',
-            pan: '',
-            ext: { url: url },
+    // 3. 按线路分组，拼装成 XPTV 能识别的格式
+    for (let i = 0; i < lineNames.length; i++) {
+        const lineName = lineNames[i];
+        const lineId = i + 1; // 假设线路ID从1开始顺序排列
+        const lineTracks = allTracks.filter(t => t.lineId === lineId);
+
+        if (lineTracks.length > 0) {
+            groups.push({
+                title: lineName,
+                tracks: lineTracks.map(t => ({
+                    name: t.name,
+                    pan: '',
+                    ext: { url: t.url }
+                }))
+            });
+        }
+    }
+
+    // 兜底：如果分组失败，把所有链接塞进一个默认分组
+    if (groups.length === 0) {
+        groups.push({
+            title: '默认分组',
+            tracks: allTracks.map(t => ({
+                name: t.name,
+                pan: '',
+                ext: { url: t.url }
+            }))
         });
     }
 
-    return jsonify({ list: [{ title: '默认分组', tracks }] });
+    return jsonify({ list: groups });
 }
 
 async function getPlayinfo(ext) {
@@ -109,7 +133,7 @@ async function getPlayinfo(ext) {
     const $ = cheerio.load(data);
     playUrl = $('video source').attr('src') || $('video').attr('src') || $('iframe').attr('src') || '';
 
-    // 2. player_aaaa 变量（苹果CMS常见）
+    // 2. player_aaaa 变量
     if (!playUrl) {
         const match = data.match(/player_aaaa\s*=\s*({[\s\S]*?})/);
         if (match) {
@@ -150,7 +174,7 @@ async function getPlayinfo(ext) {
 
         $print('找到播放地址: ' + playUrl);
 
-        // ★★★ 关键：headers 必须是对象格式，不是数组，用来绕过 CDN 防盗链 ★★★
+        // ★★★ 关键：headers 必须是对象格式，用来绕过 CDN 防盗链 ★★★
         return jsonify({
             urls: [playUrl],
             headers: {
