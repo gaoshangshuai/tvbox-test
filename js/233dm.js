@@ -28,13 +28,15 @@ async function getCards(ext) {
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
-    $('.public-list-box, .module-item').each((_, element) => {
-        const href = $(element).find('a').attr('href');
-        const title = $(element).find('a').attr('title') || $(element).find('.public-list-title, .module-item-title').text().trim();
-        const cover = $(element).find('img').attr('data-src') || $(element).find('img').attr('src');
-        const remark = $(element).find('.public-list-prb, .module-item-note').text().trim();
+    // 用 href 包含 /anime/ 来定位卡片，避免 class 随机变化
+    $('a[href*="/anime/"]').each((_, element) => {
+        const href = $(element).attr('href');
+        const title = $(element).attr('title');
+        const cover = $(element).attr('data-original');
+        const remark = $(element).find('span:last-child b').text().trim();
 
-        if (href && title) {
+        // 去重（防止同一张卡片被抓两次）
+        if (href && title && !cards.some(c => c.vod_id === href)) {
             cards.push({
                 vod_id: href,
                 vod_name: title,
@@ -58,12 +60,16 @@ async function getTracks(ext) {
 
     // 尝试多种常见播放列表选择器
     const playlistSelectors = [
-        '.module-play-list a',
         '.play-list a',
-        '.playlist a',
+        '.module-play-list a',
+        '.anthology a',
+        '#play-list a',
+        'a[href*="/play/"]',
+        'a[href*="/watch/"]',
         '.content-playlist a',
     ];
 
+    let found = false;
     for (const selector of playlistSelectors) {
         const elements = $(selector);
         if (elements.length > 0) {
@@ -74,16 +80,17 @@ async function getTracks(ext) {
                     tracks.push({
                         name: name,
                         pan: '',
-                        ext: { url: `${appConfig.site}${playUrl}` },
+                        ext: { url: playUrl.startsWith('http') ? playUrl : `${appConfig.site}${playUrl}` },
                     });
                 }
             });
+            found = true;
             break; // 找到有效选择器后停止
         }
     }
 
     // 如果没找到剧集列表，当作电影处理
-    if (tracks.length === 0) {
+    if (!found || tracks.length === 0) {
         tracks.push({
             name: '播放',
             pan: '',
@@ -127,7 +134,21 @@ async function getPlayinfo(ext) {
         }
     }
 
+    // 方法4：查找 player_aaaa 使用 url 字段
+    if (!playUrl) {
+        const urlMatch = data.match(/["']url["']\s*:\s*["']([^"']+)["']/);
+        if (urlMatch) {
+            playUrl = urlMatch[1];
+        }
+    }
+
     if (playUrl) {
+        // 有些链接可能是相对路径
+        if (playUrl.startsWith('//')) {
+            playUrl = 'https:' + playUrl;
+        } else if (playUrl.startsWith('/')) {
+            playUrl = appConfig.site + playUrl;
+        }
         return jsonify({ urls: [playUrl] });
     }
 
@@ -144,13 +165,13 @@ async function search(ext) {
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
-    $('.public-list-box, .module-search-item').each((_, element) => {
-        const href = $(element).find('a').attr('href');
-        const title = $(element).find('a').attr('title') || $(element).find('.public-list-title, .module-item-title').text().trim();
-        const cover = $(element).find('img').attr('data-src') || $(element).find('img').attr('src');
-        const remark = $(element).find('.public-list-prb, .module-item-note').text().trim();
+    $('a[href*="/anime/"]').each((_, element) => {
+        const href = $(element).attr('href');
+        const title = $(element).attr('title');
+        const cover = $(element).attr('data-original');
+        const remark = $(element).find('span:last-child b').text().trim();
 
-        if (href && title) {
+        if (href && title && !cards.some(c => c.vod_id === href)) {
             cards.push({
                 vod_id: href,
                 vod_name: title,
