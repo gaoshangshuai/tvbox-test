@@ -24,17 +24,24 @@ async function getCards(ext) {
     let cards = [];
     let { id, page = 1 } = ext;
 
-    // 第一页不带页码后缀，第二页开始是 -2, -3...
     let url = page === 1 ? `${appConfig.site}/type/${id}.html` : `${appConfig.site}/type/${id}-${page}.html`;
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
-    // 用 href 包含 /anime/ 定位卡片
     $('a[href*="/anime/"]').each((_, element) => {
         const href = $(element).attr('href');
         const title = $(element).attr('title');
-        const cover = $(element).attr('data-original');
+        let cover = $(element).attr('data-original') || $(element).attr('src') || '';
         const remark = $(element).find('span:last-child b').text().trim();
+
+        if (cover && !cover.startsWith('http')) {
+            cover = cover.startsWith('//') ? 'https:' + cover : appConfig.site + cover;
+        }
+
+        // ★ 图片代理，绕过防盗链 ★
+        if (cover) {
+            cover = 'https://images.weserv.nl/?url=' + encodeURIComponent(cover);
+        }
 
         if (href && title && !cards.some(c => c.vod_id === href)) {
             cards.push({
@@ -58,10 +65,8 @@ async function getTracks(ext) {
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
-    // 1. 抓取线路按钮：<ul class="channel-tab"><li><a href="#playlist2">天堂<span>13</span></a></li>...</ul>
     let lines = [];
     $('.channel-tab li a').each((_, el) => {
-        // 去掉末尾集数数字，如 "天堂13" → "天堂"
         const rawText = $(el).text().replace(/\d+$/, '').trim();
         const href = $(el).attr('href') || '';
         const match = href.match(/#playlist(\d+)/);
@@ -71,7 +76,6 @@ async function getTracks(ext) {
         }
     });
 
-    // 2. 对每个线路，抓取 #playlistN 容器里的剧集链接
     for (const line of lines) {
         let tracks = [];
         const container = $(`#playlist${line.lineId}`);
@@ -92,7 +96,6 @@ async function getTracks(ext) {
         }
     }
 
-    // 3. 兜底：如果线路抓不到，暴力抓所有 /play/ 链接
     if (groups.length === 0) {
         let tracks = [];
         $('a[href*="/play/"]').each((_, el) => {
@@ -123,7 +126,6 @@ async function getPlayinfo(ext) {
     const $ = cheerio.load(data);
     playUrl = $('video source').attr('src') || $('video').attr('src') || $('iframe').attr('src') || '';
 
-    // 方法2：player_aaaa 变量（苹果CMS核心）
     if (!playUrl) {
         const match = data.match(/player_aaaa\s*=\s*({[\s\S]*?})\s*<\/script>/);
         if (match) {
@@ -140,13 +142,11 @@ async function getPlayinfo(ext) {
         }
     }
 
-    // 方法3：宽松匹配 url 字段
     if (!playUrl) {
         const match = data.match(/["']url["']\s*:\s*["']([^"']+)["']/);
         if (match) playUrl = match[1];
     }
 
-    // 方法4：URL 解码
     if (playUrl && playUrl.includes('%')) {
         try {
             const decoded = decodeURIComponent(playUrl);
@@ -154,7 +154,6 @@ async function getPlayinfo(ext) {
         } catch (e) {}
     }
 
-    // 方法5：Base64 解码
     if (playUrl && !playUrl.startsWith('http') && playUrl.length > 20) {
         try {
             const decoded = Buffer.from(playUrl, 'base64').toString('utf-8');
@@ -162,13 +161,11 @@ async function getPlayinfo(ext) {
         } catch (e) {}
     }
 
-    // 方法6：正则匹配 m3u8 / mp4 / flv
     if (!playUrl) {
         const m3u8Match = data.match(/https?:\/\/[^\s"'<>]+\.(?:m3u8|mp4|flv)[^\s"'<>]*/);
         if (m3u8Match) playUrl = m3u8Match[0];
     }
 
-    // 方法7：嵌套 m3u8（如量子线路）
     if (playUrl && playUrl.includes('http') && playUrl.indexOf('http', 5) > 0) {
         const nestedMatch = playUrl.match(/(https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*)/g);
         if (nestedMatch && nestedMatch.length > 1) {
@@ -182,11 +179,9 @@ async function getPlayinfo(ext) {
 
         $print('找到播放地址: ' + playUrl);
 
-        // ★★★ 按域名区分 headers ★★★
         let headers = { 'User-Agent': UA };
 
         if (playUrl.includes('tiktokcdn') || playUrl.includes('akamaized.net')) {
-            // 精品线路：TikTok CDN，用 tiktok 的 Referer
             headers['Referer'] = 'https://www.tiktok.com/';
         } else {
             headers['Referer'] = appConfig.site + '/';
@@ -212,8 +207,17 @@ async function search(ext) {
     $('a[href*="/anime/"]').each((_, element) => {
         const href = $(element).attr('href');
         const title = $(element).attr('title');
-        const cover = $(element).attr('data-original');
+        let cover = $(element).attr('data-original') || $(element).attr('src') || '';
         const remark = $(element).find('span:last-child b').text().trim();
+
+        if (cover && !cover.startsWith('http')) {
+            cover = cover.startsWith('//') ? 'https:' + cover : appConfig.site + cover;
+        }
+
+        if (cover) {
+            cover = 'https://images.weserv.nl/?url=' + encodeURIComponent(cover);
+        }
+
         if (href && title && !cards.some(c => c.vod_id === href)) {
             cards.push({
                 vod_id: href,
