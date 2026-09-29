@@ -191,9 +191,20 @@ async function search(ext) {
     let text = encodeURIComponent(ext.text);
 
     const url = `${appConfig.site}/search/-------------.html?wd=${text}`;
-    const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
-    const $ = cheerio.load(data);
+    $print('搜索URL: ' + url);
 
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+            'Referer': appConfig.site + '/',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9',
+        }
+    });
+
+    $print('搜索HTML长度: ' + data.length);
+
+    const $ = cheerio.load(data);
     $('a[href*="/anime/"]').each((_, element) => {
         const href = $(element).attr('href');
         const title = $(element).attr('title');
@@ -209,6 +220,8 @@ async function search(ext) {
             });
         }
     });
+
+    $print('搜索结果数: ' + cards.length);
 
     return jsonify({ list: cards });
 }
