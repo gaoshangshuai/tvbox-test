@@ -55,7 +55,7 @@ async function getTracks(ext) {
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
-    // 抓取线路按钮
+    // 抓取所有线路按钮（包括精品）
     let lines = [];
     $('.channel-tab li a').each((_, el) => {
         const rawText = $(el).text().replace(/\d+$/, '').trim();
@@ -67,7 +67,6 @@ async function getTracks(ext) {
         }
     });
 
-    // 遍历每条线路，抓取对应剧集
     for (const line of lines) {
         let tracks = [];
         const container = $(`#playlist${line.lineId}`);
@@ -119,7 +118,7 @@ async function getPlayinfo(ext) {
     let from = '';
     let encrypt = 1;
 
-    // 解析 player_aaaa
+    // 1. 解析 player_aaaa
     const match = data.match(/player_aaaa\s*=\s*({[\s\S]*?})\s*<\/script>/);
     if (match) {
         try {
@@ -141,22 +140,26 @@ async function getPlayinfo(ext) {
         }
     }
 
-    // 情况A：url 是编码的（% 开头）
+    // 2. 如果是编码过的 URL（% 开头），先解码
     if (playUrl && playUrl.startsWith('%')) {
         try {
             playUrl = decodeURIComponent(playUrl);
         } catch (e) {}
     }
 
-    // 情况B：url 是一个 ID（精品线路），调用后台 API 获取真实地址
-    if (playUrl && !playUrl.startsWith('http') && !playUrl.startsWith('//') && playUrl.length > 10) {
-        $print('精品线路，尝试请求后台 API，ID: ' + playUrl);
+    // 3. 关键：如果 url 是视频 ID（不是 http 开头），尝试请求后台 API 获取真实地址
+    if (playUrl && !playUrl.startsWith('http') && playUrl.length > 10) {
+        $print('检测到视频ID，尝试请求后台API，ID: ' + playUrl);
         const apiUrl = `${appConfig.site}/addons/dp/player/index.php?key=0&id=${playUrl}&uid=0&from=${from}&url=`;
+        $print('请求后台API: ' + apiUrl);
+
         try {
             const { data: apiData } = await $fetch.get(apiUrl, { headers: { 'User-Agent': UA } });
             const hrefMatch = apiData.match(/href="(.+?)"/);
             if (hrefMatch && hrefMatch[1]) {
                 const playerUrl = hrefMatch[1].startsWith('http') ? hrefMatch[1] : appConfig.site + hrefMatch[1];
+                $print('找到播放器页面: ' + playerUrl);
+
                 const { data: playerData } = await $fetch.get(playerUrl, { headers: { 'User-Agent': UA } });
                 const configMatch = playerData.match(/config\s*=\s*(\{[\s\S]*?\})\s*(?:;|if\s*\()/);
                 if (configMatch) {
@@ -171,24 +174,20 @@ async function getPlayinfo(ext) {
                 }
             }
         } catch (e) {
-            $print('后台 API 请求失败: ' + e.message);
+            $print('后台API请求失败: ' + e.message);
         }
     }
 
-    // 情况C：直接从页面提取
-    if (!playUrl) {
+    // 4. 如果前面都失败了，尝试从原始页面直接提取
+    if (!playUrl || !playUrl.startsWith('http')) {
         playUrl = $('video source').attr('src') || $('video').attr('src') || $('iframe').attr('src') || '';
     }
-    if (!playUrl) {
-        const urlMatch = data.match(/["']url["']\s*:\s*["']([^"']+)["']/);
-        if (urlMatch) playUrl = urlMatch[1];
-    }
-    if (!playUrl) {
+    if (!playUrl || !playUrl.startsWith('http')) {
         const m3u8Match = data.match(/https?:\/\/[^\s"'<>]+\.(?:m3u8|mp4|flv)[^\s"'<>]*/);
         if (m3u8Match) playUrl = m3u8Match[0];
     }
 
-    // 处理嵌套 m3u8
+    // 5. 处理嵌套 m3u8
     if (playUrl && playUrl.includes('http') && playUrl.indexOf('http', 5) > 0) {
         const nestedMatch = playUrl.match(/(https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*)/g);
         if (nestedMatch && nestedMatch.length > 1) {
