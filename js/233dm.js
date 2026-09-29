@@ -110,40 +110,49 @@ async function getPlayinfo(ext) {
     let url = ext.url;
 
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
+    const $ = cheerio.load(data);
 
     let playUrl = '';
+    let from = '';
+    let encrypt = 1;
 
-    const $ = cheerio.load(data);
-    playUrl = $('video source').attr('src') || $('video').attr('src') || $('iframe').attr('src') || '';
-
-    if (!playUrl) {
-        const match = data.match(/player_aaaa\s*=\s*({[\s\S]*?})\s*<\/script>/);
-        if (match) {
+    // 优先解析 player_aaaa
+    const match = data.match(/player_aaaa\s*=\s*({[\s\S]*?})\s*<\/script>/);
+    if (match) {
+        try {
+            let jsonStr = match[1];
             try {
-                const playerData = JSON.parse(match[1]);
-                playUrl = playerData.url || playerData.vid || '';
+                const playerData = JSON.parse(jsonStr);
+                playUrl = playerData.url || '';
+                from = playerData.from || '';
+                encrypt = playerData.encrypt || 1;
             } catch (e) {
-                try {
-                    const fixed = match[1].replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');
-                    const playerData = JSON.parse(fixed);
-                    playUrl = playerData.url || playerData.vid || '';
-                } catch (e2) {}
+                jsonStr = jsonStr.replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');
+                const playerData = JSON.parse(jsonStr);
+                playUrl = playerData.url || '';
+                from = playerData.from || '';
+                encrypt = playerData.encrypt || 1;
             }
-        }
+        } catch (e) {}
+    }
+
+    // 如果 player_aaaa 没有找到，尝试其他方式
+    if (!playUrl) {
+        playUrl = $('video source').attr('src') || $('video').attr('src') || $('iframe').attr('src') || '';
     }
 
     if (!playUrl) {
-        const match = data.match(/["']url["']\s*:\s*["']([^"']+)["']/);
-        if (match) playUrl = match[1];
+        const urlMatch = data.match(/["']url["']\s*:\s*["']([^"']+)["']/);
+        if (urlMatch) playUrl = urlMatch[1];
     }
 
+    // 处理编码
     if (playUrl && playUrl.includes('%')) {
         try {
             const decoded = decodeURIComponent(playUrl);
             if (decoded.startsWith('http')) playUrl = decoded;
         } catch (e) {}
     }
-
     if (playUrl && !playUrl.startsWith('http') && playUrl.length > 20) {
         try {
             const decoded = Buffer.from(playUrl, 'base64').toString('utf-8');
@@ -151,11 +160,13 @@ async function getPlayinfo(ext) {
         } catch (e) {}
     }
 
+    // 如果还找不到，尝试正则
     if (!playUrl) {
         const m3u8Match = data.match(/https?:\/\/[^\s"'<>]+\.(?:m3u8|mp4|flv)[^\s"'<>]*/);
         if (m3u8Match) playUrl = m3u8Match[0];
     }
 
+    // 处理嵌套 m3u8
     if (playUrl && playUrl.includes('http') && playUrl.indexOf('http', 5) > 0) {
         const nestedMatch = playUrl.match(/(https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*)/g);
         if (nestedMatch && nestedMatch.length > 1) {
@@ -167,12 +178,15 @@ async function getPlayinfo(ext) {
         if (playUrl.startsWith('//')) playUrl = 'https:' + playUrl;
         else if (playUrl.startsWith('/')) playUrl = appConfig.site + playUrl;
 
-        $print('找到播放地址: ' + playUrl);
+        $print('找到播放地址: ' + playUrl + ', from: ' + from + ', encrypt: ' + encrypt);
 
+        // 动态设置 headers
         let headers = { 'User-Agent': UA };
 
+        // 对于 tiktokcdn 等特殊 CDN，不发送 Referer，避免被拦截
         if (playUrl.includes('tiktokcdn') || playUrl.includes('akamaized.net')) {
-            headers['Referer'] = 'https://www.tiktok.com/';
+            // 精品线路：TikTok CDN，不发送 Referer/Origin
+            $print('精品线路：TikTok CDN，不发送 Referer');
         } else {
             headers['Referer'] = appConfig.site + '/';
             headers['Origin'] = appConfig.site;
@@ -182,6 +196,7 @@ async function getPlayinfo(ext) {
     }
 
     $print('未找到播放地址，HTML长度: ' + data.length);
+    $print('HTML前500字符: ' + data.substring(0, 500));
     return jsonify({ urls: [] });
 }
 
@@ -191,31 +206,16 @@ async function search(ext) {
     let text = encodeURIComponent(ext.text);
 
     const url = `${appConfig.site}/search/-------------.html?wd=${text}`;
-    $print('搜索URL: ' + url);
-
-    let data = '';
-    try {
-        const res = await $fetch.get(url, {
-            headers: {
-                'User-Agent': UA,
-                'Referer': appConfig.site + '/',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'zh-CN,zh;q=0.9',
-                'Accept-Encoding': 'gzip, deflate',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
-            }
-        });
-        data = res.data;
-    } catch (e) {
-        $print('搜索请求失败: ' + e.message);
-        return jsonify({ list: [] });
-    }
-
-    $print('搜索HTML长度: ' + data.length);
-    $print('搜索HTML前300字符: ' + data.substring(0, 300));
-
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+            'Referer': appConfig.site + '/',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9',
+        }
+    });
     const $ = cheerio.load(data);
+
     $('a[href*="/anime/"]').each((_, element) => {
         const href = $(element).attr('href');
         const title = $(element).attr('title');
@@ -232,6 +232,5 @@ async function search(ext) {
         }
     });
 
-    $print('搜索结果数: ' + cards.length);
     return jsonify({ list: cards });
 }
