@@ -55,7 +55,6 @@ async function getTracks(ext) {
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
-    // 抓取所有线路按钮（包括精品）
     let lines = [];
     $('.channel-tab li a').each((_, el) => {
         const rawText = $(el).text().replace(/\d+$/, '').trim();
@@ -87,7 +86,6 @@ async function getTracks(ext) {
         }
     }
 
-    // 兜底：如果线路抓不到，暴力抓所有 /play/ 链接
     if (groups.length === 0) {
         let tracks = [];
         $('a[href*="/play/"]').each((_, el) => {
@@ -111,95 +109,101 @@ async function getPlayinfo(ext) {
     ext = argsify(ext);
     let url = ext.url;
 
+    // 第一步：请求233dm的播放页，拿到 player_aaaa 配置
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
     let playUrl = '';
-    let from = '';
-    let encrypt = 1;
+    let from = 'mp4'; // 精品线路的 from 通常是 mp4
+    let vid = '';
 
-    // 1. 解析 player_aaaa
+    // 解析 player_aaaa，提取视频ID (url 字段)
     const match = data.match(/player_aaaa\s*=\s*({[\s\S]*?})\s*<\/script>/);
     if (match) {
         try {
             let jsonStr = match[1];
             try {
                 const playerData = JSON.parse(jsonStr);
-                playUrl = playerData.url || '';
-                from = playerData.from || '';
-                encrypt = playerData.encrypt || 1;
+                vid = playerData.url || '';
+                from = playerData.from || 'mp4';
             } catch (e) {
                 jsonStr = jsonStr.replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');
                 const playerData = JSON.parse(jsonStr);
-                playUrl = playerData.url || '';
-                from = playerData.from || '';
-                encrypt = playerData.encrypt || 1;
+                vid = playerData.url || '';
+                from = playerData.from || 'mp4';
             }
         } catch (e) {
             $print('解析 player_aaaa 失败: ' + e.message);
         }
     }
 
-    // 2. 如果是编码过的 URL（% 开头），先解码
-    if (playUrl && playUrl.startsWith('%')) {
+    // 第二步：如果拿到了视频ID，就请求远程播放器接口
+    if (vid && !vid.startsWith('http')) {
+        // 如果ID是编码过的，先解码
+        if (vid.startsWith('%')) {
+            try { vid = decodeURIComponent(vid); } catch (e) {}
+        }
+
+        $print('精品线路，视频ID: ' + vid);
+
+        // 构造远程播放器接口地址（从你的抓包结果中获取）
+        const playerApiUrl = `https://art.v2player.top:8989/player/?url=${vid}&dmid=18119&next=${encodeURIComponent(url)}&nid=1&h=${appConfig.site}`;
+        $print('请求远程播放器接口: ' + playerApiUrl);
+
         try {
-            playUrl = decodeURIComponent(playUrl);
-        } catch (e) {}
-    }
+            const { data: playerData } = await $fetch.get(playerApiUrl, {
+                headers: {
+                    'User-Agent': UA,
+                    'Referer': appConfig.site + '/',
+                }
+            });
 
-    // 3. 关键：如果 url 是视频 ID（不是 http 开头），尝试请求后台 API 获取真实地址
-    if (playUrl && !playUrl.startsWith('http') && playUrl.length > 10) {
-        $print('检测到视频ID，尝试请求后台API，ID: ' + playUrl);
-        const apiUrl = `${appConfig.site}/addons/dp/player/index.php?key=0&id=${playUrl}&uid=0&from=${from}&url=`;
-        $print('请求后台API: ' + apiUrl);
-
-        try {
-            const { data: apiData } = await $fetch.get(apiUrl, { headers: { 'User-Agent': UA } });
-            const hrefMatch = apiData.match(/href="(.+?)"/);
-            if (hrefMatch && hrefMatch[1]) {
-                const playerUrl = hrefMatch[1].startsWith('http') ? hrefMatch[1] : appConfig.site + hrefMatch[1];
-                $print('找到播放器页面: ' + playerUrl);
-
-                const { data: playerData } = await $fetch.get(playerUrl, { headers: { 'User-Agent': UA } });
-                const configMatch = playerData.match(/config\s*=\s*(\{[\s\S]*?\})\s*(?:;|if\s*\()/);
-                if (configMatch) {
+            // 从返回的HTML中提取 player_aaaa 或 config 变量中的播放地址
+            let realPlayUrl = '';
+            const realMatch = playerData.match(/player_aaaa\s*=\s*({[\s\S]*?})\s*<\/script>/);
+            if (realMatch) {
+                try {
+                    let realJson = realMatch[1];
                     try {
-                        const cfg = new Function('return ' + configMatch[1])();
-                        playUrl = cfg.url || '';
-                    } catch (e) {}
-                }
-                if (!playUrl) {
-                    const videoMatch = playerData.match(/https?:\/\/[^\s"']+\.(?:m3u8|mp4|flv)[^\s"']*/);
-                    if (videoMatch) playUrl = videoMatch[0];
-                }
+                        const realData = JSON.parse(realJson);
+                        realPlayUrl = realData.url || '';
+                    } catch (e) {
+                        realJson = realJson.replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');
+                        const realData = JSON.parse(realJson);
+                        realPlayUrl = realData.url || '';
+                    }
+                } catch (e) {}
+            }
+
+            // 如果 player_aaaa 里没有，尝试直接匹配 m3u8 或 mp4 链接
+            if (!realPlayUrl) {
+                const m3u8Match = playerData.match(/https?:\/\/[^\s"'<>]+\.(?:m3u8|mp4|flv)[^\s"'<>]*/);
+                if (m3u8Match) realPlayUrl = m3u8Match[0];
+            }
+
+            if (realPlayUrl) {
+                playUrl = realPlayUrl;
+                $print('从远程播放器接口找到播放地址: ' + playUrl);
             }
         } catch (e) {
-            $print('后台API请求失败: ' + e.message);
+            $print('请求远程播放器接口失败: ' + e.message);
         }
     }
 
-    // 4. 如果前面都失败了，尝试从原始页面直接提取
-    if (!playUrl || !playUrl.startsWith('http')) {
+    // 第三步：如果远程接口没拿到，回退到直接从原页面提取
+    if (!playUrl) {
         playUrl = $('video source').attr('src') || $('video').attr('src') || $('iframe').attr('src') || '';
     }
-    if (!playUrl || !playUrl.startsWith('http')) {
+    if (!playUrl) {
         const m3u8Match = data.match(/https?:\/\/[^\s"'<>]+\.(?:m3u8|mp4|flv)[^\s"'<>]*/);
         if (m3u8Match) playUrl = m3u8Match[0];
-    }
-
-    // 5. 处理嵌套 m3u8
-    if (playUrl && playUrl.includes('http') && playUrl.indexOf('http', 5) > 0) {
-        const nestedMatch = playUrl.match(/(https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*)/g);
-        if (nestedMatch && nestedMatch.length > 1) {
-            playUrl = nestedMatch[nestedMatch.length - 1];
-        }
     }
 
     if (playUrl) {
         if (playUrl.startsWith('//')) playUrl = 'https:' + playUrl;
         else if (playUrl.startsWith('/')) playUrl = appConfig.site + playUrl;
 
-        $print('最终播放地址: ' + playUrl + ' (from: ' + from + ')');
+        $print('最终播放地址: ' + playUrl);
 
         // ★★★ 关键：TikTok CDN 使用专属 headers ★★★
         let headers = {};
@@ -237,8 +241,6 @@ async function search(ext) {
         headers: {
             'User-Agent': UA,
             'Referer': appConfig.site + '/',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9',
         }
     });
     const $ = cheerio.load(data);
