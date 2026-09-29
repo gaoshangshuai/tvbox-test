@@ -8,13 +8,6 @@
       "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/jpyy.js"
     },
     {
-      "key": "migu",
-      "name": "咪咕",
-      "type": 3,
-      "api": "csp_migu",
-      "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/migu.js"
-    },
-    {
       "key": "233dm",
       "name": "233动漫",
       "type": 3,
