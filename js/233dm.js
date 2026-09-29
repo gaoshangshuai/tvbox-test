@@ -24,19 +24,15 @@ async function getCards(ext) {
     let cards = [];
     let { id, page = 1 } = ext;
 
-    // 第一页不带页码后缀，第二页开始是 -2, -3...
     let url = page === 1 ? `${appConfig.site}/type/${id}.html` : `${appConfig.site}/type/${id}-${page}.html`;
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
-    // 用 href 包含 /anime/ 定位卡片，避免随机 class 失效
     $('a[href*="/anime/"]').each((_, element) => {
         const href = $(element).attr('href');
         const title = $(element).attr('title');
         const cover = $(element).attr('data-original');
         const remark = $(element).find('span:last-child b').text().trim();
-
-        // 去重
         if (href && title && !cards.some(c => c.vod_id === href)) {
             cards.push({
                 vod_id: href,
@@ -59,63 +55,56 @@ async function getTracks(ext) {
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
-    // 1. 提取线路名称（如：天堂、精品、暴风、量子）
-    let lineNames = [];
-    $('.play-source-tab a, .nav-tabs a, .playlist-tab a, .source-tab a, .module-tab-item').each((_, el) => {
-        const name = $(el).text().trim();
-        if (name && !lineNames.includes(name)) {
-            lineNames.push(name);
+    // 1. 抓取所有线路按钮：<ul class="channel-tab"><li><a href="#playlist2">天堂<span>13</span></a></li>...</ul>
+    let lines = [];
+    $('.channel-tab li a').each((_, el) => {
+        // 去掉末尾的集数数字，如 "天堂13" → "天堂"
+        const rawText = $(el).text().replace(/\d+$/, '').trim();
+        const href = $(el).attr('href') || '';
+        const match = href.match(/#playlist(\d+)/);
+        const lineId = match ? match[1] : '';
+        if (rawText && lineId) {
+            lines.push({ name: rawText, lineId: lineId });
         }
     });
-    if (lineNames.length === 0) lineNames.push('默认线路');
 
-    // 2. 按线路抓取剧集链接
-    let allTracks = [];
-    $('a[href*="/play/"]').each((_, el) => {
-        const href = $(el).attr('href');
-        const text = $(el).text().trim();
-        if (!href || !text) return;
-
-        // 解析线路ID（从链接中提取，如 /play/xxx-1-1.html 里的 1）
-        const match = href.match(/-(\d+)-\d+\.html/);
-        const lineId = match ? parseInt(match[1]) : 0;
-
-        allTracks.push({
-            name: text,
-            pan: '',
-            lineId: lineId,
-            url: href.startsWith('http') ? href : `${appConfig.site}${href}`
-        });
-    });
-
-    // 3. 按线路分组，拼装成 XPTV 能识别的格式
-    for (let i = 0; i < lineNames.length; i++) {
-        const lineName = lineNames[i];
-        const lineId = i + 1; // 假设线路ID从1开始顺序排列
-        const lineTracks = allTracks.filter(t => t.lineId === lineId);
-
-        if (lineTracks.length > 0) {
-            groups.push({
-                title: lineName,
-                tracks: lineTracks.map(t => ({
-                    name: t.name,
+    // 2. 对每个线路，抓取对应 #playlistN 容器里的剧集链接
+    for (const line of lines) {
+        let tracks = [];
+        // 苹果CMS的剧集容器通常是 #playlist1, #playlist2 等
+        const container = $(`#playlist${line.lineId}`);
+        container.find('a').each((_, el) => {
+            const href = $(el).attr('href');
+            const text = $(el).text().trim();
+            if (href && text && !tracks.some(t => t.ext.url.endsWith(href))) {
+                tracks.push({
+                    name: text,
                     pan: '',
-                    ext: { url: t.url }
-                }))
-            });
+                    ext: { url: href.startsWith('http') ? href : `${appConfig.site}${href}` }
+                });
+            }
+        });
+
+        if (tracks.length > 0) {
+            groups.push({ title: line.name, tracks: tracks });
         }
     }
 
-    // 兜底：如果分组失败，把所有链接塞进一个默认分组
+    // 3. 兜底：如果线路抓不到，暴力抓所有 /play/ 链接
     if (groups.length === 0) {
-        groups.push({
-            title: '默认分组',
-            tracks: allTracks.map(t => ({
-                name: t.name,
-                pan: '',
-                ext: { url: t.url }
-            }))
+        let tracks = [];
+        $('a[href*="/play/"]').each((_, el) => {
+            const href = $(el).attr('href');
+            const text = $(el).text().trim();
+            if (href && text && !tracks.some(t => t.ext.url.endsWith(href))) {
+                tracks.push({
+                    name: text,
+                    pan: '',
+                    ext: { url: href.startsWith('http') ? href : `${appConfig.site}${href}` }
+                });
+            }
         });
+        groups.push({ title: '默认分组', tracks: tracks });
     }
 
     return jsonify({ list: groups });
@@ -129,11 +118,9 @@ async function getPlayinfo(ext) {
 
     let playUrl = '';
 
-    // 1. 直接找 video / iframe
     const $ = cheerio.load(data);
     playUrl = $('video source').attr('src') || $('video').attr('src') || $('iframe').attr('src') || '';
 
-    // 2. player_aaaa 变量
     if (!playUrl) {
         const match = data.match(/player_aaaa\s*=\s*({[\s\S]*?})/);
         if (match) {
@@ -144,25 +131,21 @@ async function getPlayinfo(ext) {
         }
     }
 
-    // 3. m3u8 直链
     if (!playUrl) {
         const m3u8Match = data.match(/https?:\/\/[^\s"']+\.m3u8[^\s"']*/);
         if (m3u8Match) playUrl = m3u8Match[0];
     }
 
-    // 4. 任意 http 开头的播放文件
     if (!playUrl) {
         const urlMatch = data.match(/["'](https?:\/\/[^"']+\.(?:m3u8|mp4|flv)[^"']*)["']/);
         if (urlMatch) playUrl = urlMatch[1];
     }
 
-    // 5. iframe src
     if (!playUrl) {
         const iframeMatch = data.match(/<iframe[^>]+src=["']([^"']+)["']/);
         if (iframeMatch) playUrl = iframeMatch[1];
     }
 
-    // 6. url 字段通用匹配
     if (!playUrl) {
         const urlMatch = data.match(/["']url["']\s*:\s*["']([^"']+)["']/);
         if (urlMatch) playUrl = urlMatch[1];
@@ -174,7 +157,6 @@ async function getPlayinfo(ext) {
 
         $print('找到播放地址: ' + playUrl);
 
-        // ★★★ 关键：headers 必须是对象格式，用来绕过 CDN 防盗链 ★★★
         return jsonify({
             urls: [playUrl],
             headers: {
