@@ -28,7 +28,7 @@ async function getConfig() {
     return jsonify(appConfig);
 }
 
-// 生成UUID（用于clientId）
+// 生成UUID
 function generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
         var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
@@ -40,7 +40,7 @@ function generateUUID() {
 function generateDevId(clientId) {
     try {
         const key = CryptoJS.enc.Utf8.parse('0e0f0cb703bb0f0c0e0cb0b00a0bbaba');
-        const iv = CryptoJS.enc.Utf8.parse('0e0f0cb703bb0f0c0e0cb0b00a0bbaba'.substring(0, 16));
+        const iv = CryptoJS.enc.Utf8.parse('0e0f0cb703bb0f0c'.substring(0, 16));
         const encrypted = CryptoJS.AES.encrypt(clientId, key, {
             iv: iv,
             mode: CryptoJS.mode.CBC,
@@ -67,6 +67,18 @@ function buildPlayUrlParams(contId) {
     return `contId=${contId}&rateType=4&clientId=${clientId}&timestamp=${timestamp}&startPlay=true&devId=${encodeURIComponent(devId)}&ums=1&signN=${signN}&xh265=true&chip=mgwww&channelId=0132_10010001005`;
 }
 
+// ★★★ 提取封面：兼容多种字段名 + 图片代理绕过防盗链 ★★★
+function extractCover(item) {
+    let cover = item.pic || item.cover || item.coverUrl || item.image || item.picUrl || item.horizontalPic || item.verticalPic || '';
+    if (cover && !cover.startsWith('http')) {
+        cover = cover.startsWith('//') ? 'https:' + cover : 'https://www.miguvideo.com' + cover;
+    }
+    if (cover) {
+        cover = 'https://images.weserv.nl/?url=' + encodeURIComponent(cover);
+    }
+    return cover;
+}
+
 // 获取分类列表
 async function getCards(ext) {
     ext = argsify(ext);
@@ -83,30 +95,31 @@ async function getCards(ext) {
     const catId = catMap[id] || '1001';
 
     try {
+        // 优先从频道页提取
         const url = `${appConfig.site}/p/channel/121d155c2ce74e9f96e7fa80b502d062`;
         const { data } = await $fetch.get(url, { headers: HEADERS });
         const $ = cheerio.load(data);
 
-        // 尝试从页面提取视频卡片
         $('a[href*="/p/detail/"]').each((_, element) => {
             const href = $(element).attr('href');
             const title = $(element).find('.title, .name, h3, h4').text().trim() || $(element).attr('title');
-            const cover = $(element).find('img').attr('src') || $(element).find('img').attr('data-src');
-            const contId = href ? href.match(/\/(\d+)/) : null;
+            const imgEl = $(element).find('img');
+            const coverRaw = imgEl.attr('src') || imgEl.attr('data-src');
             const remark = $(element).find('.update, .note, .remark').text().trim();
+            const contId = href ? href.match(/\/(\d+)/) : null;
 
             if (contId && title && !cards.some(c => c.vod_id === contId[1])) {
                 cards.push({
                     vod_id: contId[1],
                     vod_name: title,
-                    vod_pic: cover,
+                    vod_pic: coverRaw,
                     vod_remarks: remark,
                     ext: { id: contId[1] },
                 });
             }
         });
 
-        // 如果页面提取不到，尝试从API获取
+        // 如果页面提取不到，尝试从 API 获取
         if (cards.length === 0) {
             const apiUrl = `https://webapi.miguvideo.com/gateway/vod/v1/vodlist?catId=${catId}&pageNum=${page}&pageSize=20`;
             const res = await $fetch.get(apiUrl, { headers: HEADERS });
@@ -116,7 +129,7 @@ async function getCards(ext) {
                 cards.push({
                     vod_id: item.contId || item.id,
                     vod_name: item.name || item.title,
-                    vod_pic: item.pic || item.image,
+                    vod_pic: extractCover(item),
                     vod_remarks: item.updateInfo || item.remark || '',
                     ext: { id: item.contId || item.id },
                 });
@@ -140,7 +153,6 @@ async function getTracks(ext) {
         const { data } = await $fetch.get(detailUrl, { headers: HEADERS });
         const $ = cheerio.load(data);
 
-        // 尝试从详情页提取剧集
         let tracks = [];
         $('a[href*="/p/play/"], .play-list a, .episode-list a').each((_, element) => {
             const href = $(element).attr('href');
@@ -160,14 +172,9 @@ async function getTracks(ext) {
         if (tracks.length > 0) {
             groups.push({ title: '默认分组', tracks });
         } else {
-            // 如果没有剧集列表，当作电影处理
             groups.push({
                 title: '默认分组',
-                tracks: [{
-                    name: '播放',
-                    pan: '',
-                    ext: { id: contId },
-                }],
+                tracks: [{ name: '播放', pan: '', ext: { id: contId } }],
             });
         }
     } catch (e) {
@@ -187,35 +194,24 @@ async function getPlayinfo(ext) {
     let contId = ext.id;
 
     try {
-        // 构建带签名的请求参数
         const params = buildPlayUrlParams(contId);
         const apiUrl = `https://webapi.miguvideo.com/gateway/playurl/v3/play/playurl?${params}`;
 
         $print('请求播放地址: ' + apiUrl);
 
         const { data } = await $fetch.get(apiUrl, {
-            headers: {
-                ...HEADERS,
-                'Accept': 'application/json',
-            }
+            headers: { ...HEADERS, 'Accept': 'application/json' }
         });
 
         const json = argsify(data);
         let playUrl = '';
 
-        // 从响应中提取m3u8地址
-        if (json?.body?.urlInfo?.url) {
-            playUrl = json.body.urlInfo.url;
-        } else if (json?.urlInfo?.url) {
-            playUrl = json.urlInfo.url;
-        } else if (json?.body?.url) {
-            playUrl = json.body.url;
-        } else if (json?.data?.url) {
-            playUrl = json.data.url;
-        }
+        if (json?.body?.urlInfo?.url) playUrl = json.body.urlInfo.url;
+        else if (json?.urlInfo?.url) playUrl = json.urlInfo.url;
+        else if (json?.body?.url) playUrl = json.body.url;
+        else if (json?.data?.url) playUrl = json.data.url;
 
         if (playUrl) {
-            // 添加 crossdomain 参数
             if (playUrl.includes('?')) {
                 playUrl += '&crossdomain=www';
             } else {
@@ -251,10 +247,7 @@ async function search(ext) {
     try {
         const url = `https://webapi.miguvideo.com/gateway/search/v1/search?keyword=${text}&pageNum=1&pageSize=20`;
         const { data } = await $fetch.get(url, {
-            headers: {
-                ...HEADERS,
-                'Accept': 'application/json',
-            }
+            headers: { ...HEADERS, 'Accept': 'application/json' }
         });
 
         const json = argsify(data);
@@ -264,7 +257,7 @@ async function search(ext) {
             cards.push({
                 vod_id: item.contId || item.id,
                 vod_name: item.name || item.title,
-                vod_pic: item.pic || item.image,
+                vod_pic: extractCover(item),
                 vod_remarks: item.updateInfo || item.remark || '',
                 ext: { id: item.contId || item.id },
             });
