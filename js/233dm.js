@@ -55,6 +55,7 @@ async function getTracks(ext) {
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
+    // 抓取线路按钮
     let lines = [];
     $('.channel-tab li a').each((_, el) => {
         const rawText = $(el).text().replace(/\d+$/, '').trim();
@@ -66,6 +67,7 @@ async function getTracks(ext) {
         }
     });
 
+    // 遍历每条线路，抓取对应剧集
     for (const line of lines) {
         let tracks = [];
         const container = $(`#playlist${line.lineId}`);
@@ -86,6 +88,7 @@ async function getTracks(ext) {
         }
     }
 
+    // 兜底：如果线路抓不到，暴力抓所有 /play/ 链接
     if (groups.length === 0) {
         let tracks = [];
         $('a[href*="/play/"]').each((_, el) => {
@@ -116,7 +119,7 @@ async function getPlayinfo(ext) {
     let from = '';
     let encrypt = 1;
 
-    // 优先解析 player_aaaa
+    // 解析 player_aaaa
     const match = data.match(/player_aaaa\s*=\s*({[\s\S]*?})\s*<\/script>/);
     if (match) {
         try {
@@ -133,34 +136,53 @@ async function getPlayinfo(ext) {
                 from = playerData.from || '';
                 encrypt = playerData.encrypt || 1;
             }
+        } catch (e) {
+            $print('解析 player_aaaa 失败: ' + e.message);
+        }
+    }
+
+    // 情况A：url 是编码的（% 开头）
+    if (playUrl && playUrl.startsWith('%')) {
+        try {
+            playUrl = decodeURIComponent(playUrl);
         } catch (e) {}
     }
 
-    // 如果 player_aaaa 没有找到，尝试其他方式
+    // 情况B：url 是一个 ID（精品线路），调用后台 API 获取真实地址
+    if (playUrl && !playUrl.startsWith('http') && !playUrl.startsWith('//') && playUrl.length > 10) {
+        $print('精品线路，尝试请求后台 API，ID: ' + playUrl);
+        const apiUrl = `${appConfig.site}/addons/dp/player/index.php?key=0&id=${playUrl}&uid=0&from=${from}&url=`;
+        try {
+            const { data: apiData } = await $fetch.get(apiUrl, { headers: { 'User-Agent': UA } });
+            const hrefMatch = apiData.match(/href="(.+?)"/);
+            if (hrefMatch && hrefMatch[1]) {
+                const playerUrl = hrefMatch[1].startsWith('http') ? hrefMatch[1] : appConfig.site + hrefMatch[1];
+                const { data: playerData } = await $fetch.get(playerUrl, { headers: { 'User-Agent': UA } });
+                const configMatch = playerData.match(/config\s*=\s*(\{[\s\S]*?\})\s*(?:;|if\s*\()/);
+                if (configMatch) {
+                    try {
+                        const cfg = new Function('return ' + configMatch[1])();
+                        playUrl = cfg.url || '';
+                    } catch (e) {}
+                }
+                if (!playUrl) {
+                    const videoMatch = playerData.match(/https?:\/\/[^\s"']+\.(?:m3u8|mp4|flv)[^\s"']*/);
+                    if (videoMatch) playUrl = videoMatch[0];
+                }
+            }
+        } catch (e) {
+            $print('后台 API 请求失败: ' + e.message);
+        }
+    }
+
+    // 情况C：直接从页面提取
     if (!playUrl) {
         playUrl = $('video source').attr('src') || $('video').attr('src') || $('iframe').attr('src') || '';
     }
-
     if (!playUrl) {
         const urlMatch = data.match(/["']url["']\s*:\s*["']([^"']+)["']/);
         if (urlMatch) playUrl = urlMatch[1];
     }
-
-    // 处理编码
-    if (playUrl && playUrl.includes('%')) {
-        try {
-            const decoded = decodeURIComponent(playUrl);
-            if (decoded.startsWith('http')) playUrl = decoded;
-        } catch (e) {}
-    }
-    if (playUrl && !playUrl.startsWith('http') && playUrl.length > 20) {
-        try {
-            const decoded = Buffer.from(playUrl, 'base64').toString('utf-8');
-            if (decoded.startsWith('http')) playUrl = decoded;
-        } catch (e) {}
-    }
-
-    // 如果还找不到，尝试正则
     if (!playUrl) {
         const m3u8Match = data.match(/https?:\/\/[^\s"'<>]+\.(?:m3u8|mp4|flv)[^\s"'<>]*/);
         if (m3u8Match) playUrl = m3u8Match[0];
@@ -178,25 +200,31 @@ async function getPlayinfo(ext) {
         if (playUrl.startsWith('//')) playUrl = 'https:' + playUrl;
         else if (playUrl.startsWith('/')) playUrl = appConfig.site + playUrl;
 
-        $print('找到播放地址: ' + playUrl + ', from: ' + from + ', encrypt: ' + encrypt);
+        $print('最终播放地址: ' + playUrl + ' (from: ' + from + ')');
 
-        // 动态设置 headers
-        let headers = { 'User-Agent': UA };
-
-        // 对于 tiktokcdn 等特殊 CDN，不发送 Referer，避免被拦截
+        // ★★★ 关键：TikTok CDN 使用专属 headers ★★★
+        let headers = {};
         if (playUrl.includes('tiktokcdn') || playUrl.includes('akamaized.net')) {
-            // 精品线路：TikTok CDN，不发送 Referer/Origin
-            $print('精品线路：TikTok CDN，不发送 Referer');
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-G960F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36',
+                'Referer': 'https://www.tiktok.com/',
+                'Origin': 'https://www.tiktok.com',
+                'Accept': '*/*',
+                'Accept-Encoding': 'identity',
+            };
+            $print('精品线路：使用 TikTok 专属 headers');
         } else {
-            headers['Referer'] = appConfig.site + '/';
-            headers['Origin'] = appConfig.site;
+            headers = {
+                'User-Agent': UA,
+                'Referer': appConfig.site + '/',
+                'Origin': appConfig.site,
+            };
         }
 
         return jsonify({ urls: [playUrl], headers: headers });
     }
 
     $print('未找到播放地址，HTML长度: ' + data.length);
-    $print('HTML前500字符: ' + data.substring(0, 500));
     return jsonify({ urls: [] });
 }
 
