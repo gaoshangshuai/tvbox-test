@@ -1,4 +1,5 @@
 const cheerio = createCheerio();
+// 必须使用 iPhone Safari UA，TikTok/Akamai CDN 的 bti 签名参数与 UA 强绑定
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1';
 
 let appConfig = {
@@ -109,7 +110,6 @@ async function getPlayinfo(ext) {
     ext = argsify(ext);
     let url = ext.url;
     let playUrl = '';
-    let headers = {};
 
     try {
         // 第一步：请求播放页获取源码
@@ -152,7 +152,7 @@ async function getPlayinfo(ext) {
                     if (vid && !vid.startsWith('http')) {
                         $print(`[233dm] 精品线路 VID: ${vid}, FROM: ${from}`);
 
-                        // 动态构造解析接口地址（移除硬编码dmid）
+                        // 动态构造解析接口地址
                         const parseApi = `https://art.v2player.top:8989/player/?url=${encodeURIComponent(vid)}&next=${encodeURIComponent(url)}&nid=1&h=${encodeURIComponent(appConfig.site)}`;
 
                         const { data: parseHtml } = await $fetch.get(parseApi, {
@@ -188,32 +188,45 @@ async function getPlayinfo(ext) {
             playUrl = $('video source').attr('src') || $('video').attr('src') || $('iframe').attr('src') || '';
         }
 
-        // 第五步：补全协议头 & 设置Headers
+        // 第五步：补全协议头 & XPTV 专属 Headers 注入
         if (playUrl) {
             if (playUrl.startsWith('//')) playUrl = 'https:' + playUrl;
             else if (playUrl.startsWith('/')) playUrl = appConfig.site + playUrl;
 
-            // ★★★ TikTok/Akamai CDN 专属 Headers ★★★
+            // ★★★ XPTV 专用：通过 x-headers scheme 注入播放 Headers ★★★
             if (playUrl.includes('tiktokcdn') || playUrl.includes('akamaized.net')) {
-                headers = {
-                    // 必须与解析时使用的UA完全一致，bti参数与UA强绑定
+                const tiktokHeaders = {
+                    // 必须与解析时使用的 UA 完全一致
                     'User-Agent': UA,
                     'Referer': 'https://www.tiktok.com/',
                     'Origin': 'https://www.tiktok.com',
-                    // 禁止压缩，Akamai对gzip响应可能截断视频流
+                    // 禁止压缩，防止 Akamai 截断视频流
                     'Accept-Encoding': 'identity',
                     'Accept': '*/*',
                 };
-                $print('[233dm] TikTok CDN Headers (iPhone Safari + identity)');
+                
+                // 将 Headers 编码为 JSON 字符串并拼接到 URL 参数中
+                const separator = playUrl.includes('?') ? '&' : '?';
+                const finalUrl = `${playUrl}${separator}x-headers=${encodeURIComponent(JSON.stringify(tiktokHeaders))}`;
+                
+                $print(`[233dm] ✅ XPTV x-headers 已注入，准备播放`);
+                
+                // ⚠️ 注意：使用 x-headers 时，外层 headers 必须留空，避免冲突
+                return jsonify({ 
+                    urls: [finalUrl], 
+                    headers: {} 
+                });
             } else {
-                headers = {
-                    'User-Agent': UA,
-                    'Referer': `${appConfig.site}/`,
-                };
+                // 非 TikTok/Akamai 线路，正常返回
+                $print(`[233dm] ✅ 普通线路播放地址: ${playUrl}`);
+                return jsonify({ 
+                    urls: [playUrl], 
+                    headers: { 
+                        'User-Agent': UA, 
+                        'Referer': `${appConfig.site}/` 
+                    } 
+                });
             }
-
-            $print(`[233dm] ✅ 最终播放地址: ${playUrl}`);
-            return jsonify({ urls: [playUrl], headers: headers });
         }
 
     } catch (err) {
