@@ -55,10 +55,8 @@ async function getTracks(ext) {
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
-    // 1. 抓取所有线路按钮：<ul class="channel-tab"><li><a href="#playlist2">天堂<span>13</span></a></li>...</ul>
     let lines = [];
     $('.channel-tab li a').each((_, el) => {
-        // 去掉末尾的集数数字，如 "天堂13" → "天堂"
         const rawText = $(el).text().replace(/\d+$/, '').trim();
         const href = $(el).attr('href') || '';
         const match = href.match(/#playlist(\d+)/);
@@ -68,10 +66,8 @@ async function getTracks(ext) {
         }
     });
 
-    // 2. 对每个线路，抓取对应 #playlistN 容器里的剧集链接
     for (const line of lines) {
         let tracks = [];
-        // 苹果CMS的剧集容器通常是 #playlist1, #playlist2 等
         const container = $(`#playlist${line.lineId}`);
         container.find('a').each((_, el) => {
             const href = $(el).attr('href');
@@ -90,7 +86,6 @@ async function getTracks(ext) {
         }
     }
 
-    // 3. 兜底：如果线路抓不到，暴力抓所有 /play/ 链接
     if (groups.length === 0) {
         let tracks = [];
         $('a[href*="/play/"]').each((_, el) => {
@@ -122,33 +117,50 @@ async function getPlayinfo(ext) {
     playUrl = $('video source').attr('src') || $('video').attr('src') || $('iframe').attr('src') || '';
 
     if (!playUrl) {
-        const match = data.match(/player_aaaa\s*=\s*({[\s\S]*?})/);
+        const match = data.match(/player_aaaa\s*=\s*({[\s\S]*?})\s*<\/script>/);
         if (match) {
             try {
                 const playerData = JSON.parse(match[1]);
                 playUrl = playerData.url || playerData.vid || '';
-            } catch (e) {}
+            } catch (e) {
+                try {
+                    const fixed = match[1].replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');
+                    const playerData = JSON.parse(fixed);
+                    playUrl = playerData.url || playerData.vid || '';
+                } catch (e2) {}
+            }
         }
     }
 
     if (!playUrl) {
-        const m3u8Match = data.match(/https?:\/\/[^\s"']+\.m3u8[^\s"']*/);
+        const match = data.match(/["']url["']\s*:\s*["']([^"']+)["']/);
+        if (match) playUrl = match[1];
+    }
+
+    if (playUrl && playUrl.includes('%')) {
+        try {
+            const decoded = decodeURIComponent(playUrl);
+            if (decoded.startsWith('http')) playUrl = decoded;
+        } catch (e) {}
+    }
+
+    if (playUrl && !playUrl.startsWith('http') && playUrl.length > 20) {
+        try {
+            const decoded = Buffer.from(playUrl, 'base64').toString('utf-8');
+            if (decoded.startsWith('http')) playUrl = decoded;
+        } catch (e) {}
+    }
+
+    if (!playUrl) {
+        const m3u8Match = data.match(/https?:\/\/[^\s"'<>]+\.(?:m3u8|mp4|flv)[^\s"'<>]*/);
         if (m3u8Match) playUrl = m3u8Match[0];
     }
 
-    if (!playUrl) {
-        const urlMatch = data.match(/["'](https?:\/\/[^"']+\.(?:m3u8|mp4|flv)[^"']*)["']/);
-        if (urlMatch) playUrl = urlMatch[1];
-    }
-
-    if (!playUrl) {
-        const iframeMatch = data.match(/<iframe[^>]+src=["']([^"']+)["']/);
-        if (iframeMatch) playUrl = iframeMatch[1];
-    }
-
-    if (!playUrl) {
-        const urlMatch = data.match(/["']url["']\s*:\s*["']([^"']+)["']/);
-        if (urlMatch) playUrl = urlMatch[1];
+    if (playUrl && playUrl.includes('http') && playUrl.indexOf('http', 5) > 0) {
+        const nestedMatch = playUrl.match(/(https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*)/g);
+        if (nestedMatch && nestedMatch.length > 1) {
+            playUrl = nestedMatch[nestedMatch.length - 1];
+        }
     }
 
     if (playUrl) {
@@ -168,6 +180,7 @@ async function getPlayinfo(ext) {
     }
 
     $print('未找到播放地址，HTML长度: ' + data.length);
+    $print('HTML前500字符: ' + data.substring(0, 500));
     return jsonify({ urls: [] });
 }
 
