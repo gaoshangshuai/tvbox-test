@@ -193,16 +193,27 @@ async function search(ext) {
     const url = `${appConfig.site}/search/-------------.html?wd=${text}`;
     $print('搜索URL: ' + url);
 
-    const { data } = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-            'Referer': appConfig.site + '/',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9',
-        }
-    });
+    let data = '';
+    try {
+        const res = await $fetch.get(url, {
+            headers: {
+                'User-Agent': UA,
+                'Referer': appConfig.site + '/',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'zh-CN,zh;q=0.9',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            }
+        });
+        data = res.data;
+    } catch (e) {
+        $print('搜索请求失败: ' + e.message);
+        return jsonify({ list: [] });
+    }
 
     $print('搜索HTML长度: ' + data.length);
+    $print('搜索HTML前300字符: ' + data.substring(0, 300));
 
     const $ = cheerio.load(data);
     $('a[href*="/anime/"]').each((_, element) => {
@@ -222,6 +233,5 @@ async function search(ext) {
     });
 
     $print('搜索结果数: ' + cards.length);
-
     return jsonify({ list: cards });
 }
