@@ -169,18 +169,19 @@ async function getPlayinfo(ext) {
 
         $print('找到播放地址: ' + playUrl);
 
-        return jsonify({
-            urls: [playUrl],
-            headers: {
-                'User-Agent': UA,
-                'Referer': appConfig.site + '/',
-                'Origin': appConfig.site
-            }
-        });
+        let headers = { 'User-Agent': UA };
+
+        if (playUrl.includes('tiktokcdn') || playUrl.includes('akamaized.net')) {
+            headers['Referer'] = 'https://www.tiktok.com/';
+        } else {
+            headers['Referer'] = appConfig.site + '/';
+            headers['Origin'] = appConfig.site;
+        }
+
+        return jsonify({ urls: [playUrl], headers: headers });
     }
 
     $print('未找到播放地址，HTML长度: ' + data.length);
-    $print('HTML前500字符: ' + data.substring(0, 500));
     return jsonify({ urls: [] });
 }
 
@@ -189,7 +190,7 @@ async function search(ext) {
     let cards = [];
     let text = encodeURIComponent(ext.text);
 
-    const url = `${appConfig.site}/search/${text}-------------.html`;
+    const url = `${appConfig.site}/search/-------------.html?wd=${text}`;
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
 
