@@ -31,18 +31,8 @@ async function getCards(ext) {
     $('a[href*="/anime/"]').each((_, element) => {
         const href = $(element).attr('href');
         const title = $(element).attr('title');
-        let cover = $(element).attr('data-original') || $(element).attr('src') || '';
+        const cover = $(element).attr('data-original');
         const remark = $(element).find('span:last-child b').text().trim();
-
-        if (cover && !cover.startsWith('http')) {
-            cover = cover.startsWith('//') ? 'https:' + cover : appConfig.site + cover;
-        }
-
-        // ★ 图片代理，绕过防盗链 ★
-        if (cover) {
-            cover = 'https://images.weserv.nl/?url=' + encodeURIComponent(cover);
-        }
-
         if (href && title && !cards.some(c => c.vod_id === href)) {
             cards.push({
                 vod_id: href,
@@ -179,19 +169,18 @@ async function getPlayinfo(ext) {
 
         $print('找到播放地址: ' + playUrl);
 
-        let headers = { 'User-Agent': UA };
-
-        if (playUrl.includes('tiktokcdn') || playUrl.includes('akamaized.net')) {
-            headers['Referer'] = 'https://www.tiktok.com/';
-        } else {
-            headers['Referer'] = appConfig.site + '/';
-            headers['Origin'] = appConfig.site;
-        }
-
-        return jsonify({ urls: [playUrl], headers: headers });
+        return jsonify({
+            urls: [playUrl],
+            headers: {
+                'User-Agent': UA,
+                'Referer': appConfig.site + '/',
+                'Origin': appConfig.site
+            }
+        });
     }
 
     $print('未找到播放地址，HTML长度: ' + data.length);
+    $print('HTML前500字符: ' + data.substring(0, 500));
     return jsonify({ urls: [] });
 }
 
@@ -207,17 +196,8 @@ async function search(ext) {
     $('a[href*="/anime/"]').each((_, element) => {
         const href = $(element).attr('href');
         const title = $(element).attr('title');
-        let cover = $(element).attr('data-original') || $(element).attr('src') || '';
+        const cover = $(element).attr('data-original');
         const remark = $(element).find('span:last-child b').text().trim();
-
-        if (cover && !cover.startsWith('http')) {
-            cover = cover.startsWith('//') ? 'https:' + cover : appConfig.site + cover;
-        }
-
-        if (cover) {
-            cover = 'https://images.weserv.nl/?url=' + encodeURIComponent(cover);
-        }
-
         if (href && title && !cards.some(c => c.vod_id === href)) {
             cards.push({
                 vod_id: href,
