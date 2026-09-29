@@ -82,15 +82,19 @@ async function getPlayinfo(ext) {
     ext = argsify(ext);
     let url = ext.url;
     let playUrl = '';
+    let isSniffing = false; // 标记是否进入嗅探模式
 
     try {
         const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA, 'Referer': appConfig.site + '/' } });
         
-        // 1. 尝试提取直链
+        // 1. 优先尝试提取直链 (如果能在源码里找到，直接播放最快)
         const directMatch = data.match(/https?:\/\/[^\s"'<>]+\.(?:m3u8|mp4)[^\s"'<>]*/i);
-        if (directMatch) playUrl = directMatch[0];
+        if (directMatch && !directMatch[0].includes('tiktokcdn')) {
+            playUrl = directMatch[0];
+            $print(`[233dm] 发现普通直链: ${playUrl}`);
+        }
 
-        // 2. 尝试解析接口
+        // 2. 如果是 TikTok 线路，或者没找到直链，进入“嗅探模式”
         if (!playUrl) {
             const configMatch = data.match(/player_aaaa\s*=\s*({[\s\S]*?})\s*;?\s*<\/script>/);
             if (configMatch) {
@@ -102,15 +106,13 @@ async function getPlayinfo(ext) {
                     if (vid.includes('=') && !vid.startsWith('http')) vid = atob(vid);
                     
                     if (vid && !vid.startsWith('http')) {
+                        // 构造解析页 URL
                         const parseApi = `https://art.v2player.top:8989/player/?url=${encodeURIComponent(vid)}&next=${encodeURIComponent(url)}&nid=1&h=${encodeURIComponent(appConfig.site)}`;
-                        const { data: parseHtml } = await $fetch.get(parseApi, { headers: { 'User-Agent': UA, 'Referer': appConfig.site } });
                         
-                        // 优先找 m3u8，因为 m3u8 的切片请求有时能绕过部分 Referer 检查
-                        const m3u8Match = parseHtml.match(/["'](https?:\/\/[^"']+?\.m3u8[^"']*?)["']/i);
-                        const mp4Match = parseHtml.match(/["'](https?:\/\/[^"']+?\.mp4[^"']*?)["']/i);
-                        
-                        if (m3u8Match) playUrl = m3u8Match[1];
-                        else if (mp4Match) playUrl = mp4Match[1];
+                        // ★★★ 关键改动：不提取链接，直接把解析页 URL 交给播放器嗅探 ★★★
+                        playUrl = parseApi;
+                        isSniffing = true;
+                        $print(`[233dm] ⚠️ 进入嗅探模式，目标解析页: ${parseApi}`);
                     } else if (vid.startsWith('http')) {
                         playUrl = vid;
                     }
@@ -118,20 +120,28 @@ async function getPlayinfo(ext) {
             }
         }
 
-        if (playUrl) {
-            if (playUrl.startsWith('//')) playUrl = 'https:' + playUrl;
-            
-            // ★★★ 关键判断：如果是 TikTok 链接，XPTV 几乎必死 ★★★
-            if (playUrl.includes('tiktokcdn') || playUrl.includes('akamaized.net')) {
-                $print('[233dm] ⚠️ 检测到 TikTok 链接，XPTV 原生播放器可能无法播放。');
-                $print('[233dm] 💡 建议：请在 XPTV 设置中切换播放器内核为 "IJKPlayer" 或 "MPV"。');
-                
-                // 尝试最后一次：返回不带 headers 的纯 URL，看是否能碰巧通过
-                return jsonify({ urls: [playUrl], headers: {} });
-            }
-            
-            return jsonify({ urls: [playUrl], headers: { 'User-Agent': UA, 'Referer': appConfig.site } });
+        // 3. 如果还是没找到，兜底返回原始播放页
+        if (!playUrl) {
+            playUrl = url;
+            isSniffing = true;
+            $print(`[233dm] ⚠️ 未找到任何线索，返回原始播放页进行嗅探`);
         }
+
+        if (playUrl) {
+            // 返回结果
+            // type: 1 表示这是需要嗅探的网页/解析页，而不是直接的媒体文件
+            // parse: 1 或 0 取决于框架定义，通常嗅探模式下不需要额外解析
+            return jsonify({ 
+                urls: [playUrl], 
+                headers: { 'User-Agent': UA, 'Referer': appConfig.site },
+                // 某些框架支持 extra 字段来强制开启嗅探
+                extra: {
+                    sniff: isSniffing, 
+                    ua: UA
+                }
+            });
+        }
+
     } catch (err) {
         $print(`[233dm] Error: ${err.message}`);
     }
