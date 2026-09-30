@@ -9,9 +9,7 @@ let appConfig = {
     title: '一席',
     site: SITE,
     tabs: [
-        { name: '演讲', ext: { id: '0' } },
-        { name: '万象', ext: { id: '1' } },
-        { name: '枝桠', ext: { id: '2' } },
+        { name: '最新', ext: { id: '0' } },
     ],
 };
 
@@ -19,61 +17,44 @@ async function getConfig() {
     return jsonify(appConfig);
 }
 
-// 获取分类列表
+// 获取列表
 async function getCards(ext) {
     ext = argsify(ext);
     let cards = [];
-    let { id, page = 1 } = ext;
+    let page = ext.page || 1;
+    let size = 24;
 
-    // 尝试列表接口，如果失败则用搜索
-    let url = `${API_BASE}/video_list/?type=${id}&page=${page}&size=20`;
+    const url = `${API_BASE}/video_list/?page=${page}&page_size=${size}`;
+    $print('列表URL: ' + url);
+
     try {
         const { data } = await $fetch.get(url, {
             headers: { 'User-Agent': UA, 'Referer': SITE + '/' }
         });
         const json = argsify(data);
-        const list = json?.data?.list || json?.data?.items || [];
+        const list = json?.data?.items || [];
 
         list.forEach(item => {
+            let speaker = '';
+            if (item.speaker && item.speaker.name) {
+                speaker = item.speaker.name.trim();
+            }
             cards.push({
                 vod_id: item.id,
                 vod_name: item.title,
-                vod_pic: item.video_cover,
-                vod_remarks: item.video_duration || '',
-                ext: { id: item.id, type: item.video_type ?? 0 },
+                vod_pic: item.cover,
+                vod_remarks: speaker + (item.time ? ' · ' + item.time : ''),
+                ext: { id: item.id, type: 0 },
             });
         });
     } catch (e) {
-        $print('列表接口失败，尝试搜索: ' + e.message);
-    }
-
-    // 如果列表接口没数据，用搜索接口（空关键词可能返回全部）
-    if (cards.length === 0) {
-        url = `${API_BASE}/search/?keyword=&page=${page}&size=20`;
-        try {
-            const { data } = await $fetch.get(url, {
-                headers: { 'User-Agent': UA, 'Referer': SITE + '/' }
-            });
-            const json = argsify(data);
-            const list = json?.data?.list || json?.data?.items || [];
-            list.forEach(item => {
-                cards.push({
-                    vod_id: item.id,
-                    vod_name: item.title,
-                    vod_pic: item.video_cover,
-                    vod_remarks: item.video_duration || '',
-                    ext: { id: item.id, type: item.video_type ?? 0 },
-                });
-            });
-        } catch (e) {
-            $print('搜索接口失败: ' + e.message);
-        }
+        $print('获取列表失败: ' + e.message);
     }
 
     return jsonify({ list: cards });
 }
 
-// 获取剧集（一席每场演讲只有一个视频，但可能有多清晰度）
+// 获取剧集（一席每个视频提供多种清晰度）
 async function getTracks(ext) {
     ext = argsify(ext);
     let id = ext.id;
@@ -91,7 +72,7 @@ async function getTracks(ext) {
         const base = json?.data?.base_items || {};
         const videoUrls = base.video_url || [];
 
-        // 一席通常提供标清、高清、超清三种，直接作为不同线路
+        // 把不同清晰度作为不同线路
         videoUrls.forEach(v => {
             if (v.video_url) {
                 tracks.push({
@@ -102,7 +83,7 @@ async function getTracks(ext) {
             }
         });
 
-        // 如果没有视频地址，尝试用音频（一般不会）
+        // 如果没有视频地址，使用音频
         if (tracks.length === 0 && base.audio_url) {
             tracks.push({
                 name: '音频',
@@ -145,19 +126,23 @@ async function search(ext) {
     let text = encodeURIComponent(ext.text);
     let page = ext.page || 1;
 
-    const url = `${API_BASE}/search/?keyword=${text}&page=${page}&size=20`;
+    const url = `${API_BASE}/search/?keyword=${text}&page=${page}&page_size=20`;
     try {
         const { data } = await $fetch.get(url, {
             headers: { 'User-Agent': UA, 'Referer': SITE + '/' }
         });
         const json = argsify(data);
-        const list = json?.data?.list || json?.data?.items || [];
+        const list = json?.data?.items || json?.data?.list || [];
         list.forEach(item => {
+            let speaker = '';
+            if (item.speaker && item.speaker.name) {
+                speaker = item.speaker.name.trim();
+            }
             cards.push({
                 vod_id: item.id,
                 vod_name: item.title,
-                vod_pic: item.video_cover,
-                vod_remarks: item.video_duration || '',
+                vod_pic: item.cover || item.video_cover,
+                vod_remarks: speaker,
                 ext: { id: item.id, type: item.video_type ?? 0 },
             });
         });
