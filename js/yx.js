@@ -9,7 +9,12 @@ let appConfig = {
     title: '一席',
     site: SITE,
     tabs: [
-        { name: '最新', ext: { id: 'record' } },
+        { name: '首页', ext: { id: 'banner' } },
+        { name: '演讲', ext: { id: 'speech' } },
+        { name: '现场', ext: { id: 'activity' } },
+        { name: '万象', ext: { id: 'extend' } },
+        { name: '枝桠', ext: { id: 'zhiya' } },
+        { name: '记录', ext: { id: 'record' } },
     ],
 };
 
@@ -17,13 +22,24 @@ async function getConfig() {
     return jsonify(appConfig);
 }
 
-// 获取首页列表
+// 获取列表
 async function getCards(ext) {
     ext = argsify(ext);
     let cards = [];
     let page = ext.page || 1;
+    let id = ext.id || 'banner';
 
-    const url = `${API_BASE}/record/?page=${page}&page_size=12`;
+    // 根据分类构造 URL，不同分类参数不同
+    let url;
+    if (id === 'banner') {
+        url = `${API_BASE}/banner/`;
+    } else if (id === 'speech') {
+        url = `${API_BASE}/speech/?page=${page}&page_size=24`;
+    } else {
+        // activity、extend、zhiya、record 都是 page + page_size 格式
+        url = `${API_BASE}/${id}/?page=${page}&page_size=12`;
+    }
+
     $print('列表URL: ' + url);
 
     try {
@@ -31,14 +47,16 @@ async function getCards(ext) {
             headers: { 'User-Agent': UA, 'Referer': SITE + '/' }
         });
         const json = argsify(data);
-        const list = json?.data?.items || [];
+        let list = json?.data?.items || [];
+        // 兼容不同接口的字段名
+        if (list.length === 0 && Array.isArray(json?.data)) list = json.data;
+        if (list.length === 0 && json?.data?.banner_items) list = json.data.banner_items;
 
         list.forEach(item => {
             let speakerName = '';
-            // 注意字段名是 speak，不是 speaker
-            if (item.speak && item.speak.name) {
-                speakerName = item.speak.name.trim();
-            }
+            if (item.speak && item.speak.name) speakerName = item.speak.name.trim();
+            else if (item.speaker && item.speaker.name) speakerName = item.speaker.name.trim();
+
             cards.push({
                 vod_id: item.id,
                 vod_name: item.title,
