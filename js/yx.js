@@ -17,14 +17,13 @@ async function getConfig() {
     return jsonify(appConfig);
 }
 
-// 获取列表
+// 获取首页列表
 async function getCards(ext) {
     ext = argsify(ext);
     let cards = [];
     let page = ext.page || 1;
-    let size = 24;
 
-    const url = `${API_BASE}/video_list/?page=${page}&page_size=${size}`;
+    const url = `${API_BASE}/index/?page=${page}`;
     $print('列表URL: ' + url);
 
     try {
@@ -35,15 +34,15 @@ async function getCards(ext) {
         const list = json?.data?.items || [];
 
         list.forEach(item => {
-            let speaker = '';
-            if (item.speaker && item.speaker.name) {
-                speaker = item.speaker.name.trim();
+            let speakerName = '';
+            if (item.speak && item.speak.name) {
+                speakerName = item.speak.name.trim();
             }
             cards.push({
                 vod_id: item.id,
                 vod_name: item.title,
                 vod_pic: item.cover,
-                vod_remarks: speaker + (item.time ? ' · ' + item.time : ''),
+                vod_remarks: speakerName + (item.time ? ' · ' + item.time : ''),
                 ext: { id: item.id, type: 0 },
             });
         });
@@ -54,7 +53,7 @@ async function getCards(ext) {
     return jsonify({ list: cards });
 }
 
-// 获取剧集（一席每个视频提供多种清晰度）
+// 获取剧集（不同清晰度作为不同线路）
 async function getTracks(ext) {
     ext = argsify(ext);
     let id = ext.id;
@@ -72,7 +71,6 @@ async function getTracks(ext) {
         const base = json?.data?.base_items || {};
         const videoUrls = base.video_url || [];
 
-        // 把不同清晰度作为不同线路
         videoUrls.forEach(v => {
             if (v.video_url) {
                 tracks.push({
@@ -83,7 +81,6 @@ async function getTracks(ext) {
             }
         });
 
-        // 如果没有视频地址，使用音频
         if (tracks.length === 0 && base.audio_url) {
             tracks.push({
                 name: '音频',
@@ -134,16 +131,18 @@ async function search(ext) {
         const json = argsify(data);
         const list = json?.data?.items || json?.data?.list || [];
         list.forEach(item => {
-            let speaker = '';
-            if (item.speaker && item.speaker.name) {
-                speaker = item.speaker.name.trim();
+            let speakerName = '';
+            if (item.speak && item.speak.name) {
+                speakerName = item.speak.name.trim();
+            } else if (item.speaker && item.speaker.name) {
+                speakerName = item.speaker.name.trim();
             }
             cards.push({
                 vod_id: item.id,
                 vod_name: item.title,
                 vod_pic: item.cover || item.video_cover,
-                vod_remarks: speaker,
-                ext: { id: item.id, type: item.video_type ?? 0 },
+                vod_remarks: speakerName,
+                ext: { id: item.id, type: 0 },
             });
         });
     } catch (e) {
