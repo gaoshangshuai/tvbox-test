@@ -1,7 +1,7 @@
 const cheerio = createCheerio();
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1';
 
-const API_BASE = 'https://www.yixi.tv/v3/api/h5';
+const API_BASE = 'https://www.yixi.tv/v3/api/site';
 const SITE = 'https://www.yixi.tv';
 
 let appConfig = {
@@ -9,7 +9,7 @@ let appConfig = {
     title: '一席',
     site: SITE,
     tabs: [
-        { name: '最新', ext: { id: '0' } },
+        { name: '最新', ext: { id: 'record' } },
     ],
 };
 
@@ -23,7 +23,7 @@ async function getCards(ext) {
     let cards = [];
     let page = ext.page || 1;
 
-    const url = `${API_BASE}/index/?page=${page}`;
+    const url = `${API_BASE}/record/?page=${page}&page_size=12`;
     $print('列表URL: ' + url);
 
     try {
@@ -35,6 +35,7 @@ async function getCards(ext) {
 
         list.forEach(item => {
             let speakerName = '';
+            // 注意字段名是 speak，不是 speaker
             if (item.speak && item.speak.name) {
                 speakerName = item.speak.name.trim();
             }
@@ -63,7 +64,7 @@ async function getTracks(ext) {
     let tracks = [];
 
     try {
-        const url = `${API_BASE}/play_detail/?video_type=${type}&video_id=${id}&album_id=0`;
+        const url = `https://www.yixi.tv/v3/api/h5/play_detail/?video_type=${type}&video_id=${id}&album_id=0`;
         const { data } = await $fetch.get(url, {
             headers: { 'User-Agent': UA, 'Referer': SITE + '/' }
         });
@@ -116,38 +117,7 @@ async function getPlayinfo(ext) {
     });
 }
 
-// 搜索
+// 搜索（暂时返回空）
 async function search(ext) {
-    ext = argsify(ext);
-    let cards = [];
-    let text = encodeURIComponent(ext.text);
-    let page = ext.page || 1;
-
-    const url = `${API_BASE}/search/?keyword=${text}&page=${page}&page_size=20`;
-    try {
-        const { data } = await $fetch.get(url, {
-            headers: { 'User-Agent': UA, 'Referer': SITE + '/' }
-        });
-        const json = argsify(data);
-        const list = json?.data?.items || json?.data?.list || [];
-        list.forEach(item => {
-            let speakerName = '';
-            if (item.speak && item.speak.name) {
-                speakerName = item.speak.name.trim();
-            } else if (item.speaker && item.speaker.name) {
-                speakerName = item.speaker.name.trim();
-            }
-            cards.push({
-                vod_id: item.id,
-                vod_name: item.title,
-                vod_pic: item.cover || item.video_cover,
-                vod_remarks: speakerName,
-                ext: { id: item.id, type: 0 },
-            });
-        });
-    } catch (e) {
-        $print('搜索失败: ' + e.message);
-    }
-
-    return jsonify({ list: cards });
+    return jsonify({ list: [] });
 }
