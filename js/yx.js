@@ -1,15 +1,11 @@
 const cheerio = createCheerio();
-const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1';
-
-const API_BASE = 'https://www.yixi.tv/v3/api/site';
-const SITE = 'https://www.yixi.tv';
 
 let appConfig = {
     ver: 1,
-    title: '一席',
-    site: SITE,
+    title: '一席测试',
+    site: 'https://www.yixi.tv',
     tabs: [
-        { name: '首页', ext: { id: 'banner' } },
+        { name: '测试', ext: { id: 'test' } },
     ],
 };
 
@@ -18,58 +14,23 @@ async function getConfig() {
 }
 
 async function getCards(ext) {
-    ext = argsify(ext);
-    let cards = [];
-    let id = ext.id || 'banner';
-
-    let url = id === 'banner' ? `${API_BASE}/banner/` : `${API_BASE}/${id}/?page=1&page_size=12`;
-
-    try {
-        const res = await $fetch.get(url, {
-            headers: { 'User-Agent': UA, 'Referer': SITE + '/' }
-        });
-
-        // 不管拿到什么，都先显示出来，方便调试
-        let raw = res.data;
-        if (typeof raw === 'object') {
-            raw = JSON.stringify(raw);
-        }
-        raw = String(raw);
-
-        // 把返回内容切成几段，每段做成一张卡片
-        const chunkSize = 200;
-        for (let i = 0; i < raw.length && i < 2000; i += chunkSize) {
-            const chunk = raw.substring(i, i + chunkSize);
-            cards.push({
-                vod_id: 'debug_' + i,
-                vod_name: '[' + i + '] ' + chunk,
-                vod_pic: '',
-                vod_remarks: '调试信息',
-                ext: { id: 'debug', type: 0 },
-            });
-        }
-
-        // 如果 raw 为空，也显示一张卡片
-        if (cards.length === 0) {
-            cards.push({
-                vod_id: 'empty',
-                vod_name: '返回内容为空',
-                vod_pic: '',
-                vod_remarks: 'URL: ' + url,
-                ext: { id: 'empty', type: 0 },
-            });
-        }
-    } catch (e) {
-        // 请求失败，也显示出来
-        cards.push({
-            vod_id: 'error',
-            vod_name: '请求失败: ' + e.message,
-            vod_pic: '',
-            vod_remarks: 'URL: ' + url,
-            ext: { id: 'error', type: 0 },
-        });
-    }
-
+    // 硬编码，不请求网络
+    let cards = [
+        {
+            vod_id: 'test1',
+            vod_name: '测试卡片1：如果你看到这张卡片，说明XPTV能正常调用getCards',
+            vod_pic: 'https://aliimg.yixi.tv/almond/17901505598057_j.jpg',
+            vod_remarks: '硬编码数据',
+            ext: { id: 'test1', type: 0 },
+        },
+        {
+            vod_id: 'test2',
+            vod_name: '测试卡片2：如果这张也能看到，说明代码加载没问题',
+            vod_pic: 'https://aliimg.yixi.tv/almond/17896242683935_j.jpg',
+            vod_remarks: '硬编码数据',
+            ext: { id: 'test2', type: 0 },
+        },
+    ];
     return jsonify({ list: cards });
 }
 
