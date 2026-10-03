@@ -14,6 +14,9 @@ const HEADERS = {
     'Cookie': 'Hm_lvt_889adc48ccf05684181736d6e2e31ed4=1790986893; Hm_lpvt_889adc48ccf05684181736d6e2e31ed4=1790986893; HMACCOUNT=9F8659EE0B2375FA',
 };
 
+// 常见的 video_type 候选值
+const VIDEO_TYPES = [0, 1, 2, 3, 7, 10, 17];
+
 let appConfig = {
     ver: 1,
     title: '一席',
@@ -65,12 +68,18 @@ async function getCards(ext) {
 
                 const time = item.time ? String(item.time) : '';
 
+                // 如果列表里带了 video_type，优先用它，否则用 -1 表示自动探测
+                let vtype = -1;
+                if (item.video_type !== undefined && item.video_type !== null) {
+                    vtype = item.video_type;
+                }
+
                 cards.push({
                     vod_id: vid,
                     vod_name: title,
                     vod_pic: cover,
                     vod_remarks: speaker + (time ? ' · ' + time : ''),
-                    ext: { id: vid, type: 0 },
+                    ext: { id: vid, type: vtype },
                 });
 
                 seenTitles.add(title);
@@ -81,16 +90,10 @@ async function getCards(ext) {
     return jsonify({ list: cards });
 }
 
-// 剧集：只取最高清晰度，没有视频就返回空
-async function getTracks(ext) {
-    ext = argsify(ext);
-    let id = ext.id;
-    let type = ext.type || 0;
-    let groups = [];
-    let tracks = [];
-
+// 尝试用某个 video_type 去拿视频
+async function tryPlayDetail(vid, type) {
     try {
-        const url = `${API_H5}/play_detail/?video_type=${type}&video_id=${id}&album_id=0`;
+        const url = `${API_H5}/play_detail/?video_type=${type}&video_id=${vid}&album_id=0`;
         const { data } = await $fetch.get(url, { headers: HEADERS });
         const json = argsify(data);
         const base = (json && json.data && json.data.base_items) ? json.data.base_items : {};
@@ -104,13 +107,39 @@ async function getTracks(ext) {
             const best = validVideos[0];
             let playUrl = String(best.video_url).replace('http:', 'https:');
             let name = best.type_name ? String(best.type_name) : ('清晰度' + best.type);
-            tracks.push({
-                name: name,
-                pan: '',
-                ext: { url: playUrl },
-            });
+            return { name: name, url: playUrl };
         }
     } catch (e) {}
+    return null;
+}
+
+// 剧集：自动探测 video_type
+async function getTracks(ext) {
+    ext = argsify(ext);
+    let id = ext.id;
+    let type = ext.type;
+
+    let groups = [];
+    let tracks = [];
+
+    // 如果列表里已经给了明确的 type（>=0），优先用它
+    if (type !== undefined && type !== null && type >= 0) {
+        const result = await tryPlayDetail(id, type);
+        if (result) {
+            tracks.push({ name: result.name, pan: '', ext: { url: result.url } });
+        }
+    }
+
+    // 如果没拿到，依次尝试所有候选 type
+    if (tracks.length === 0) {
+        for (let i = 0; i < VIDEO_TYPES.length; i++) {
+            const result = await tryPlayDetail(id, VIDEO_TYPES[i]);
+            if (result) {
+                tracks.push({ name: result.name, pan: '', ext: { url: result.url } });
+                break;  // 找到一个就够了
+            }
+        }
+    }
 
     if (tracks.length > 0) {
         groups.push({ title: '默认分组', tracks: tracks });
