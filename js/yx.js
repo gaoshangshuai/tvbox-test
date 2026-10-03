@@ -19,7 +19,9 @@ let appConfig = {
     title: '一席',
     site: SITE,
     tabs: [
-        { name: '全部', ext: { id: 'speech' } },
+        { name: '演讲', ext: { id: 'speech' } },
+        { name: '记录', ext: { id: 'record' } },
+        { name: '枝桠', ext: { id: 'zhiya' } },
     ],
 };
 
@@ -27,22 +29,20 @@ async function getConfig() {
     return jsonify(appConfig);
 }
 
-// 列表：合并多页数据，按标题去重
+// 列表
 async function getCards(ext) {
     ext = argsify(ext);
     let cards = [];
-    let id = ext.id || 'speech';
     let page = ext.page || 1;
+    let id = ext.id || 'speech';
 
-    // 先请求第一页
     const url = `${API_SITE}/${id}/?page=${page}&page_size=20&category_id=&order_by=0`;
+    const seenTitles = new Set();
 
     try {
         const { data } = await $fetch.get(url, { headers: HEADERS });
         const json = argsify(data);
         const list = json && json.data && json.data.items ? json.data.items : [];
-
-        const seenTitles = new Set();
 
         for (let i = 0; i < list.length; i++) {
             try {
@@ -53,6 +53,7 @@ async function getCards(ext) {
                 if (!title || seenTitles.has(title)) continue;
 
                 const vid = item.id ? String(item.id) : '';
+                if (!vid) continue;
 
                 let cover = item.cover ? String(item.cover) : '';
                 if (cover && cover.indexOf('//') === 0) cover = 'https:' + cover;
@@ -80,7 +81,7 @@ async function getCards(ext) {
     return jsonify({ list: cards });
 }
 
-// 剧集：只取最高清晰度
+// 剧集：只取最高清晰度，没有视频就返回空
 async function getTracks(ext) {
     ext = argsify(ext);
     let id = ext.id;
@@ -107,12 +108,6 @@ async function getTracks(ext) {
                 name: name,
                 pan: '',
                 ext: { url: playUrl },
-            });
-        } else if (base.audio_url) {
-            tracks.push({
-                name: '音频',
-                pan: '',
-                ext: { url: base.audio_url },
             });
         }
     } catch (e) {}
