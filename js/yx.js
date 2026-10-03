@@ -29,7 +29,7 @@ async function getConfig() {
     return jsonify(appConfig);
 }
 
-// 列表：根据 fixedPage 请求不同页码，并去重
+// 列表：按标题去重
 async function getCards(ext) {
     ext = argsify(ext);
     let cards = [];
@@ -43,18 +43,20 @@ async function getCards(ext) {
         const json = argsify(data);
         const list = json && json.data && json.data.items ? json.data.items : [];
 
-        // 用 Set 记录已经添加过的 vod_id，避免重复
-        const seen = new Set();
+        // 用 Set 记录已经添加过的标题，按标题去重
+        const seenTitles = new Set();
 
         for (let i = 0; i < list.length; i++) {
             try {
                 const item = list[i];
                 if (!item) continue;
 
-                const vid = item.id ? String(item.id) : '';
-                if (!vid || seen.has(vid)) continue;  // 已存在则跳过
+                const title = item.title ? String(item.title).trim() : '';
+                if (!title) continue;
+                // 标题已经出现过，跳过
+                if (seenTitles.has(title)) continue;
 
-                const title = item.title ? String(item.title) : '';
+                const vid = item.id ? String(item.id) : '';
 
                 let cover = item.cover ? String(item.cover) : '';
                 if (cover && cover.indexOf('//') === 0) cover = 'https:' + cover;
@@ -74,7 +76,7 @@ async function getCards(ext) {
                     ext: { id: vid, type: 0 },
                 });
 
-                seen.add(vid);
+                seenTitles.add(title);
             } catch (e) {}
         }
     } catch (e) {}
@@ -97,7 +99,6 @@ async function getTracks(ext) {
         const base = (json && json.data && json.data.base_items) ? json.data.base_items : {};
         const videoUrls = base.video_url || [];
 
-        // 过滤并排序，取最高清晰度
         const validVideos = videoUrls
             .filter(v => v && v.video_url)
             .sort((a, b) => (b.type || 0) - (a.type || 0));
