@@ -20,6 +20,10 @@ let appConfig = {
     site: SITE,
     tabs: [
         { name: '演讲', ext: { id: 'speech' } },
+        { name: '现场', ext: { id: 'activity' } },
+        { name: '万象', ext: { id: 'wanxiang' } },
+        { name: '枝桠', ext: { id: 'zhiya' } },
+        { name: '记录', ext: { id: 'record' } },
     ],
 };
 
@@ -33,15 +37,27 @@ async function getCards(ext) {
     let page = ext.page || 1;
     let id = ext.id || 'speech';
 
-    // page_size 调大到 50，一页显示更多
-    const url = `${API_SITE}/${id}/?page=${page}&page_size=50&category_id=&order_by=0`;
+    // 根据不同分类构造对应的 URL
+    let url;
+    if (id === 'speech') {
+        url = `${API_SITE}/speech/?page=${page}&page_size=8&category_id=&order_by=0`;
+    } else if (id === 'activity') {
+        url = `${API_SITE}/activity/extend/?page=${page}&page_size=5`;
+    } else if (id === 'wanxiang') {
+        url = `${API_SITE}/wanxiang/extend/?page=${page}&page_size=4`;
+    } else if (id === 'zhiya') {
+        url = `${API_SITE}/zhiya/extend/?page=${page}&page_size=4`;
+    } else if (id === 'record') {
+        url = `${API_SITE}/record/extend/?page=${page}&page_size=5&order_by=0`;
+    } else {
+        url = `${API_SITE}/speech/?page=${page}&page_size=8&category_id=&order_by=0`;
+    }
 
     try {
         const { data } = await $fetch.get(url, { headers: HEADERS });
         const json = argsify(data);
-        const list = json && json.data && json.data.items ? json.data.items : [];
+        const list = (json && json.data && json.data.items) ? json.data.items : [];
 
-        // 每个视频独立处理，一个出错不影响其他
         for (let i = 0; i < list.length; i++) {
             try {
                 const item = list[i];
@@ -51,13 +67,13 @@ async function getCards(ext) {
                 const title = item.title ? String(item.title) : '';
 
                 let cover = item.cover ? String(item.cover) : '';
-                if (cover && cover.indexOf('//') === 0) {
-                    cover = 'https:' + cover;
-                }
+                if (cover && cover.indexOf('//') === 0) cover = 'https:' + cover;
 
                 let speaker = '';
                 if (item.speak && typeof item.speak === 'object' && item.speak.name) {
                     speaker = String(item.speak.name);
+                } else if (item.speaker && typeof item.speaker === 'object' && item.speaker.name) {
+                    speaker = String(item.speaker.name);
                 }
 
                 const time = item.time ? String(item.time) : '';
@@ -69,9 +85,7 @@ async function getCards(ext) {
                     vod_remarks: speaker + (time ? ' · ' + time : ''),
                     ext: { id: vid, type: 0 },
                 });
-            } catch (e) {
-                // 单个视频出错就跳过，不影响其他
-            }
+            } catch (e) {}
         }
     } catch (e) {
         cards.push({
