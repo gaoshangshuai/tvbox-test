@@ -15,7 +15,7 @@ const HEADERS = {
 
 let appConfig = {
     ver: 1,
-    title: '一席调试',
+    title: '一席调试2',
     site: SITE,
     tabs: [
         { name: '演讲', ext: { id: 'speech' } },
@@ -36,21 +36,47 @@ async function getCards(ext) {
     let cards = [];
     try {
         const { data } = await $fetch.get(url, { headers: HEADERS });
-        const str = String(data);
-        // 把返回内容显示出来
+        const json = argsify(data);
+        
+        // 显示顶层 keys
+        const topKeys = Object.keys(json || {}).join(',');
+        
+        // 显示 data 层的 keys
+        const dataKeys = json?.data ? Object.keys(json.data).join(',') : '无data';
+        
+        // 尝试找到数组字段
+        let arrayInfo = '未找到数组';
+        if (json?.data) {
+            for (let k in json.data) {
+                if (Array.isArray(json.data[k])) {
+                    arrayInfo = 'data.' + k + ' 长度=' + json.data[k].length;
+                    break;
+                }
+            }
+        }
+        
         cards.push({
             vod_id: 'debug1',
-            vod_name: '返回长度: ' + str.length,
+            vod_name: '顶层keys: ' + topKeys,
             vod_pic: '',
-            vod_remarks: str.substring(0, 600),
+            vod_remarks: 'data的keys: ' + dataKeys,
             ext: { id: 'debug', type: 0 },
         });
-    } catch (e) {
+        
         cards.push({
             vod_id: 'debug2',
+            vod_name: '数组信息: ' + arrayInfo,
+            vod_pic: '',
+            vod_remarks: 'error_code: ' + json?.error_code + ', msg: ' + json?.error_msg,
+            ext: { id: 'debug', type: 0 },
+        });
+        
+    } catch (e) {
+        cards.push({
+            vod_id: 'debug3',
             vod_name: '请求失败',
             vod_pic: '',
-            vod_remarks: e.message + ' | URL: ' + url,
+            vod_remarks: e.message,
             ext: { id: 'debug', type: 0 },
         });
     }
