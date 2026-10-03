@@ -14,6 +14,9 @@ const HEADERS = {
     'Cookie': 'Hm_lvt_889adc48ccf05684181736d6e2e31ed4=1790986893; Hm_lpvt_889adc48ccf05684181736d6e2e31ed4=1790986893; HMACCOUNT=9F8659EE0B2375FA',
 };
 
+// ★★★ 全局去重集合，放在函数外面 ★★★
+const SEEN_TITLES = new Set();
+
 let appConfig = {
     ver: 1,
     title: '一席',
@@ -29,7 +32,7 @@ async function getConfig() {
     return jsonify(appConfig);
 }
 
-// 列表：按标题去重
+// 列表：全局按标题去重
 async function getCards(ext) {
     ext = argsify(ext);
     let cards = [];
@@ -43,18 +46,16 @@ async function getCards(ext) {
         const json = argsify(data);
         const list = json && json.data && json.data.items ? json.data.items : [];
 
-        // 用 Set 记录已经添加过的标题，按标题去重
-        const seenTitles = new Set();
-
         for (let i = 0; i < list.length; i++) {
             try {
                 const item = list[i];
                 if (!item) continue;
 
-                const title = item.title ? String(item.title).trim() : '';
+                // 清理标题：去空格、去换行
+                const title = item.title ? String(item.title).replace(/\s+/g, '').trim() : '';
                 if (!title) continue;
-                // 标题已经出现过，跳过
-                if (seenTitles.has(title)) continue;
+                // 标题已经出现过，跳过（全局去重）
+                if (SEEN_TITLES.has(title)) continue;
 
                 const vid = item.id ? String(item.id) : '';
 
@@ -76,7 +77,7 @@ async function getCards(ext) {
                     ext: { id: vid, type: 0 },
                 });
 
-                seenTitles.add(title);
+                SEEN_TITLES.add(title);
             } catch (e) {}
         }
     } catch (e) {}
