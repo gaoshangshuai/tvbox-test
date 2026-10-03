@@ -2,6 +2,7 @@ const cheerio = createCheerio();
 
 const SITE = 'https://www.yixi.tv';
 const API_SITE = 'https://www.yixi.tv/v3/api/site';
+const API_H5 = 'https://www.yixi.tv/v3/api/h5';
 
 const HEADERS = {
     'User-Agent': 'Mozilla/5.0 (iPad; CPU OS 13_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/87.0.4280.77 Mobile/15E148 Safari/604.1',
@@ -19,10 +20,6 @@ let appConfig = {
     site: SITE,
     tabs: [
         { name: '演讲', ext: { id: 'speech' } },
-        { name: '现场', ext: { id: 'activity' } },
-        { name: '万象', ext: { id: 'extend' } },
-        { name: '枝桠', ext: { id: 'zhiya' } },
-        { name: '记录', ext: { id: 'record' } },
     ],
 };
 
@@ -36,60 +33,95 @@ async function getCards(ext) {
     let page = ext.page || 1;
     let id = ext.id || 'speech';
 
-    // 注意：不同分类 page_size 不一样
-    let url = `${API_SITE}/${id}/?page=${page}`;
-    if (id === 'speech') url += '&page_size=24';
-    else if (id === 'zhiya') url += '&page_size=9';
-    else url += '&page_size=12';
-    
+    const url = `${API_SITE}/${id}/?page=${page}&page_size=50&category_id=&order_by=0`;
+
     try {
         const { data } = await $fetch.get(url, { headers: HEADERS });
         const json = argsify(data);
-        
-        // 显示：分类名、返回长度、data 层的 keys
-        const str = String(data);
-        const dataKeys = json && json.data ? Object.keys(json.data).join(',') : '无data';
-        
-        // 尝试找到数组字段
-        let arrayInfo = '未找到数组';
-        if (json && json.data) {
-            for (let k in json.data) {
-                if (Array.isArray(json.data[k])) {
-                    arrayInfo = 'data.' + k + ' 长度=' + json.data[k].length;
-                    break;
-                }
-            }
+        const list = json && json.data && json.data.items ? json.data.items : [];
+
+        for (let i = 0; i < list.length; i++) {
+            try {
+                const item = list[i];
+                if (!item) continue;
+                const vid = item.id ? String(item.id) : '';
+                const title = item.title ? String(item.title) : '';
+                let cover = item.cover ? String(item.cover) : '';
+                if (cover && cover.indexOf('//') === 0) cover = 'https:' + cover;
+                let speaker = '';
+                if (item.speak && typeof item.speak === 'object' && item.speak.name) speaker = String(item.speak.name);
+                const time = item.time ? String(item.time) : '';
+                cards.push({
+                    vod_id: vid,
+                    vod_name: title,
+                    vod_pic: cover,
+                    vod_remarks: speaker + (time ? ' · ' + time : ''),
+                    ext: { id: vid, type: 0 },
+                });
+            } catch (e) {}
         }
-        
-        cards.push({
-            vod_id: 'd1',
-            vod_name: '分类: ' + id,
-            vod_pic: '',
-            vod_remarks: '返回长度: ' + str.length + ' | data的keys: ' + dataKeys,
-            ext: { id: 'debug', type: 0 },
-        });
-        
-        cards.push({
-            vod_id: 'd2',
-            vod_name: '数组信息: ' + arrayInfo,
-            vod_pic: '',
-            vod_remarks: '前300字符: ' + str.substring(0, 300),
-            ext: { id: 'debug', type: 0 },
-        });
-        
-    } catch (e) {
-        cards.push({
-            vod_id: 'err',
-            vod_name: '请求失败',
-            vod_pic: '',
-            vod_remarks: 'URL: ' + url + ' | ' + String(e.message || e),
-            ext: { id: 'err', type: 0 },
-        });
-    }
+    } catch (e) {}
 
     return jsonify({ list: cards });
 }
 
-async function getTracks(ext) { return jsonify({ list: [] }); }
-async function getPlayinfo(ext) { return jsonify({ urls: [] }); }
-async function search(ext) { return jsonify({ list: [] }); }
+// ★★★ 调试版 getTracks：把每个清晰度的 URL 显示出来 ★★★
+async function getTracks(ext) {
+    ext = argsify(ext);
+    let id = ext.id;
+    let type = ext.type || 0;
+    let groups = [];
+    let tracks = [];
+
+    try {
+        const url = `${API_H5}/play_detail/?video_type=${type}&video_id=${id}&album_id=0`;
+        const { data } = await $fetch.get(url, { headers: HEADERS });
+        const json = argsify(data);
+        const base = (json && json.data && json.data.base_items) ? json.data.base_items : {};
+        const videoUrls = base.video_url || [];
+
+        // 把原始 URL 显示出来，方便排查
+        for (let i = 0; i < videoUrls.length; i++) {
+            const v = videoUrls[i];
+            if (v && v.video_url) {
+                tracks.push({
+                    name: v.type_name ? String(v.type_name) : ('清晰度' + v.type),
+                    pan: '',
+                    ext: { url: String(v.video_url) },
+                });
+            }
+        }
+
+        // 额外加一条调试信息
+        tracks.push({
+            name: '调试: 原始URL',
+            pan: '',
+            ext: { url: JSON.stringify(videoUrls) },
+        });
+    } catch (e) {}
+
+    if (tracks.length > 0) {
+        groups.push({ title: '默认分组', tracks: tracks });
+    }
+
+    return jsonify({ list: groups });
+}
+
+async function getPlayinfo(ext) {
+    ext = argsify(ext);
+    const url = ext.url;
+    if (!url) return jsonify({ urls: [] });
+
+    return jsonify({
+        urls: [String(url)],
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': SITE + '/',
+            'Origin': SITE,
+        }
+    });
+}
+
+async function search(ext) {
+    return jsonify({ list: [] });
+}
