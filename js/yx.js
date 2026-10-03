@@ -19,9 +19,7 @@ let appConfig = {
     title: '一席',
     site: SITE,
     tabs: [
-        { name: '首页', ext: { id: 'speech', fixedPage: 1 } },
-        { name: '演讲', ext: { id: 'speech', fixedPage: 2 } },
-        { name: '记录', ext: { id: 'speech', fixedPage: 3 } },
+        { name: '全部', ext: { id: 'speech' } },
     ],
 };
 
@@ -29,16 +27,14 @@ async function getConfig() {
     return jsonify(appConfig);
 }
 
-// 列表：分类内按标题去重
+// 列表：合并多页数据，按标题去重
 async function getCards(ext) {
     ext = argsify(ext);
     let cards = [];
-    let page = ext.fixedPage || ext.page || 1;
     let id = ext.id || 'speech';
+    let page = ext.page || 1;
 
-    // 局部去重集合（只在本分类内生效）
-    const seenTitles = new Set();
-
+    // 先请求第一页
     const url = `${API_SITE}/${id}/?page=${page}&page_size=20&category_id=&order_by=0`;
 
     try {
@@ -46,14 +42,15 @@ async function getCards(ext) {
         const json = argsify(data);
         const list = json && json.data && json.data.items ? json.data.items : [];
 
+        const seenTitles = new Set();
+
         for (let i = 0; i < list.length; i++) {
             try {
                 const item = list[i];
                 if (!item) continue;
 
                 const title = item.title ? String(item.title).replace(/\s+/g, '').trim() : '';
-                if (!title) continue;
-                if (seenTitles.has(title)) continue;
+                if (!title || seenTitles.has(title)) continue;
 
                 const vid = item.id ? String(item.id) : '';
 
