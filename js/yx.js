@@ -15,7 +15,7 @@ const HEADERS = {
 
 let appConfig = {
     ver: 1,
-    title: '一席调试2',
+    title: '一席调试3',
     site: SITE,
     tabs: [
         { name: '演讲', ext: { id: 'speech' } },
@@ -37,43 +37,64 @@ async function getCards(ext) {
     try {
         const { data } = await $fetch.get(url, { headers: HEADERS });
         const json = argsify(data);
+        const items = json?.data?.items || [];
         
-        // 显示顶层 keys
-        const topKeys = Object.keys(json || {}).join(',');
-        
-        // 显示 data 层的 keys
-        const dataKeys = json?.data ? Object.keys(json.data).join(',') : '无data';
-        
-        // 尝试找到数组字段
-        let arrayInfo = '未找到数组';
-        if (json?.data) {
-            for (let k in json.data) {
-                if (Array.isArray(json.data[k])) {
-                    arrayInfo = 'data.' + k + ' 长度=' + json.data[k].length;
-                    break;
-                }
-            }
+        if (items.length > 0) {
+            const first = items[0];
+            // 输出第一个 item 的所有 key
+            const keys = Object.keys(first).join(', ');
+            cards.push({
+                vod_id: 'k1',
+                vod_name: '第一个item的keys:',
+                vod_pic: '',
+                vod_remarks: keys,
+                ext: { id: 'debug', type: 0 },
+            });
+            
+            // 输出关键字段的值
+            cards.push({
+                vod_id: 'k2',
+                vod_name: 'id: ' + (first.id || '无'),
+                vod_pic: '',
+                vod_remarks: 'title: ' + (first.title || '无'),
+                ext: { id: 'debug', type: 0 },
+            });
+            
+            cards.push({
+                vod_id: 'k3',
+                vod_name: 'cover:',
+                vod_pic: '',
+                vod_remarks: String(first.cover || '无').substring(0, 100),
+                ext: { id: 'debug', type: 0 },
+            });
+            
+            cards.push({
+                vod_id: 'k4',
+                vod_name: 'speak:',
+                vod_pic: '',
+                vod_remarks: JSON.stringify(first.speak || first.speaker || '无').substring(0, 150),
+                ext: { id: 'debug', type: 0 },
+            });
+            
+            cards.push({
+                vod_id: 'k5',
+                vod_name: 'time: ' + (first.time || '无'),
+                vod_pic: '',
+                vod_remarks: '其他字段: ' + JSON.stringify(first).substring(0, 300),
+                ext: { id: 'debug', type: 0 },
+            });
+        } else {
+            cards.push({
+                vod_id: 'empty',
+                vod_name: 'items 为空',
+                vod_pic: '',
+                vod_remarks: 'error_code: ' + json?.error_code,
+                ext: { id: 'debug', type: 0 },
+            });
         }
-        
-        cards.push({
-            vod_id: 'debug1',
-            vod_name: '顶层keys: ' + topKeys,
-            vod_pic: '',
-            vod_remarks: 'data的keys: ' + dataKeys,
-            ext: { id: 'debug', type: 0 },
-        });
-        
-        cards.push({
-            vod_id: 'debug2',
-            vod_name: '数组信息: ' + arrayInfo,
-            vod_pic: '',
-            vod_remarks: 'error_code: ' + json?.error_code + ', msg: ' + json?.error_msg,
-            ext: { id: 'debug', type: 0 },
-        });
-        
     } catch (e) {
         cards.push({
-            vod_id: 'debug3',
+            vod_id: 'err',
             vod_name: '请求失败',
             vod_pic: '',
             vod_remarks: e.message,
