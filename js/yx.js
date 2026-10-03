@@ -27,7 +27,6 @@ async function getConfig() {
     return jsonify(appConfig);
 }
 
-// 列表（海报墙）
 async function getCards(ext) {
     ext = argsify(ext);
     let cards = [];
@@ -39,25 +38,28 @@ async function getCards(ext) {
     try {
         const { data } = await $fetch.get(url, { headers: HEADERS });
         const json = argsify(data);
-        const list = json?.data?.items || [];
+        const list = json && json.data && json.data.items ? json.data.items : [];
 
-        list.forEach(item => {
-            const vid = item?.id || '';
-            const title = item?.title || '';
-            let cover = item?.cover || '';
-            const time = item?.time || '';
+        for (let i = 0; i < list.length; i++) {
+            const item = list[i];
+            if (!item) continue;
+
+            const vid = item.id ? String(item.id) : '';
+            const title = item.title ? String(item.title) : '';
+
+            // 封面：只做最简单的 https 补全
+            let cover = item.cover ? String(item.cover) : '';
+            if (cover && cover.indexOf('//') === 0) {
+                cover = 'https:' + cover;
+            }
+
+            // 讲者
             let speaker = '';
-            if (item?.speak && item.speak.name) {
-                speaker = item.speak.name.trim();
+            if (item.speak && item.speak.name) {
+                speaker = String(item.speak.name);
             }
 
-            // 处理封面 URL：补全 https，去掉可能引起问题的参数
-            if (cover) {
-                if (cover.startsWith('//')) cover = 'https:' + cover;
-                if (!cover.startsWith('http')) cover = SITE + cover;
-                // 阿里云图片的 ?imageslim 参数可能被 CDN 拒绝，去掉试试
-                cover = cover.split('?')[0];
-            }
+            const time = item.time ? String(item.time) : '';
 
             cards.push({
                 vod_id: vid,
@@ -66,19 +68,25 @@ async function getCards(ext) {
                 vod_remarks: speaker + (time ? ' · ' + time : ''),
                 ext: { id: vid, type: 0 },
             });
-        });
+        }
     } catch (e) {
-        $print('列表请求失败: ' + e.message);
+        // 出错时，把错误也做成一张卡片显示，方便排查
+        cards.push({
+            vod_id: 'err',
+            vod_name: '出错了',
+            vod_pic: '',
+            vod_remarks: String(e.message || e),
+            ext: { id: 'err', type: 0 },
+        });
     }
 
     return jsonify({ list: cards });
 }
 
-// 剧集（不同清晰度）
 async function getTracks(ext) {
     ext = argsify(ext);
     let id = ext.id;
-    let type = ext.type ?? 0;
+    let type = ext.type || 0;
     let groups = [];
     let tracks = [];
 
@@ -86,19 +94,20 @@ async function getTracks(ext) {
         const url = `${API_H5}/play_detail/?video_type=${type}&video_id=${id}&album_id=0`;
         const { data } = await $fetch.get(url, { headers: HEADERS });
         const json = argsify(data);
-        const base = json?.data?.base_items || {};
+        const base = (json && json.data && json.data.base_items) ? json.data.base_items : {};
         const videoUrls = base.video_url || [];
 
-        videoUrls.forEach(v => {
-            if (v.video_url) {
-                let playUrl = v.video_url.replace('http:', 'https:');
+        for (let i = 0; i < videoUrls.length; i++) {
+            const v = videoUrls[i];
+            if (v && v.video_url) {
+                let playUrl = String(v.video_url).replace('http:', 'https:');
                 tracks.push({
-                    name: v.type_name || `清晰度${v.type}`,
+                    name: v.type_name ? String(v.type_name) : ('清晰度' + v.type),
                     pan: '',
                     ext: { url: playUrl },
                 });
             }
-        });
+        }
 
         if (tracks.length === 0 && base.audio_url) {
             tracks.push({
@@ -107,9 +116,7 @@ async function getTracks(ext) {
                 ext: { url: base.audio_url },
             });
         }
-    } catch (e) {
-        $print('详情请求失败: ' + e.message);
-    }
+    } catch (e) {}
 
     if (tracks.length > 0) {
         groups.push({ title: '默认分组', tracks: tracks });
@@ -118,7 +125,6 @@ async function getTracks(ext) {
     return jsonify({ list: groups });
 }
 
-// 播放
 async function getPlayinfo(ext) {
     ext = argsify(ext);
     const url = ext.url;
@@ -134,7 +140,6 @@ async function getPlayinfo(ext) {
     });
 }
 
-// 搜索（暂不支持）
 async function search(ext) {
     return jsonify({ list: [] });
 }
