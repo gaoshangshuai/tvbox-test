@@ -4,6 +4,15 @@ const SITE = 'https://www.yixi.tv';
 const API_SITE = 'https://www.yixi.tv/v3/api/site';
 const API_H5 = 'https://www.yixi.tv/v3/api/h5';
 
+// 不同分类对应的 video_type
+const VIDEO_TYPES = {
+    speech: 0,
+    activity: 1,
+    wanxiang: 17,
+    zhiya: 2,
+    record: 3,
+};
+
 const HEADERS = {
     'User-Agent': 'Mozilla/5.0 (iPad; CPU OS 13_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/87.0.4280.77 Mobile/15E148 Safari/604.1',
     'Referer': SITE + '/',
@@ -37,7 +46,6 @@ async function getCards(ext) {
     let page = ext.page || 1;
     let id = ext.id || 'speech';
 
-    // 根据不同分类构造对应的 URL
     let url;
     if (id === 'speech') {
         url = `${API_SITE}/speech/?page=${page}&page_size=8&category_id=&order_by=0`;
@@ -49,8 +57,6 @@ async function getCards(ext) {
         url = `${API_SITE}/zhiya/extend/?page=${page}&page_size=4`;
     } else if (id === 'record') {
         url = `${API_SITE}/record/extend/?page=${page}&page_size=5&order_by=0`;
-    } else {
-        url = `${API_SITE}/speech/?page=${page}&page_size=8&category_id=&order_by=0`;
     }
 
     try {
@@ -83,19 +89,11 @@ async function getCards(ext) {
                     vod_name: title,
                     vod_pic: cover,
                     vod_remarks: speaker + (time ? ' · ' + time : ''),
-                    ext: { id: vid, type: 0 },
+                    ext: { id: vid, type: 0, category: id },
                 });
             } catch (e) {}
         }
-    } catch (e) {
-        cards.push({
-            vod_id: 'err',
-            vod_name: '请求出错',
-            vod_pic: '',
-            vod_remarks: String(e.message || e),
-            ext: { id: 'err', type: 0 },
-        });
-    }
+    } catch (e) {}
 
     return jsonify({ list: cards });
 }
@@ -103,7 +101,12 @@ async function getCards(ext) {
 async function getTracks(ext) {
     ext = argsify(ext);
     let id = ext.id;
-    let type = ext.type || 0;
+    let category = ext.category || 'speech';
+
+    // 根据分类选择正确的 video_type
+    let type = VIDEO_TYPES[category] !== undefined ? VIDEO_TYPES[category] : 0;
+    if (ext.type !== undefined) type = ext.type;
+
     let groups = [];
     let tracks = [];
 
@@ -125,14 +128,7 @@ async function getTracks(ext) {
                 });
             }
         }
-
-        if (tracks.length === 0 && base.audio_url) {
-            tracks.push({
-                name: '音频',
-                pan: '',
-                ext: { url: base.audio_url },
-            });
-        }
+        // ★★★ 已去掉音频回退 ★★★
     } catch (e) {}
 
     if (tracks.length > 0) {
