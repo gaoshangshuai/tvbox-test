@@ -33,47 +33,50 @@ async function getCards(ext) {
     let page = ext.page || 1;
     let id = ext.id || 'speech';
 
-    const url = `${API_SITE}/${id}/?page=${page}&page_size=8&category_id=&order_by=0`;
+    // page_size 调大到 50，一页显示更多
+    const url = `${API_SITE}/${id}/?page=${page}&page_size=50&category_id=&order_by=0`;
 
     try {
         const { data } = await $fetch.get(url, { headers: HEADERS });
         const json = argsify(data);
         const list = json && json.data && json.data.items ? json.data.items : [];
 
+        // 每个视频独立处理，一个出错不影响其他
         for (let i = 0; i < list.length; i++) {
-            const item = list[i];
-            if (!item) continue;
+            try {
+                const item = list[i];
+                if (!item) continue;
 
-            const vid = item.id ? String(item.id) : '';
-            const title = item.title ? String(item.title) : '';
+                const vid = item.id ? String(item.id) : '';
+                const title = item.title ? String(item.title) : '';
 
-            // 封面：只做最简单的 https 补全
-            let cover = item.cover ? String(item.cover) : '';
-            if (cover && cover.indexOf('//') === 0) {
-                cover = 'https:' + cover;
+                let cover = item.cover ? String(item.cover) : '';
+                if (cover && cover.indexOf('//') === 0) {
+                    cover = 'https:' + cover;
+                }
+
+                let speaker = '';
+                if (item.speak && typeof item.speak === 'object' && item.speak.name) {
+                    speaker = String(item.speak.name);
+                }
+
+                const time = item.time ? String(item.time) : '';
+
+                cards.push({
+                    vod_id: vid,
+                    vod_name: title,
+                    vod_pic: cover,
+                    vod_remarks: speaker + (time ? ' · ' + time : ''),
+                    ext: { id: vid, type: 0 },
+                });
+            } catch (e) {
+                // 单个视频出错就跳过，不影响其他
             }
-
-            // 讲者
-            let speaker = '';
-            if (item.speak && item.speak.name) {
-                speaker = String(item.speak.name);
-            }
-
-            const time = item.time ? String(item.time) : '';
-
-            cards.push({
-                vod_id: vid,
-                vod_name: title,
-                vod_pic: cover,
-                vod_remarks: speaker + (time ? ' · ' + time : ''),
-                ext: { id: vid, type: 0 },
-            });
         }
     } catch (e) {
-        // 出错时，把错误也做成一张卡片显示，方便排查
         cards.push({
             vod_id: 'err',
-            vod_name: '出错了',
+            vod_name: '请求出错',
             vod_pic: '',
             vod_remarks: String(e.message || e),
             ext: { id: 'err', type: 0 },
