@@ -42,7 +42,6 @@ async function getCards(ext) {
         const list = json?.data?.items || [];
 
         list.forEach(item => {
-            // 安全访问字段
             const vid = item?.id || '';
             const title = item?.title || '';
             let cover = item?.cover || '';
@@ -52,13 +51,12 @@ async function getCards(ext) {
                 speaker = item.speak.name.trim();
             }
 
-            // 处理封面 URL：补全 https，加图片代理
+            // 处理封面 URL：补全 https，去掉可能引起问题的参数
             if (cover) {
                 if (cover.startsWith('//')) cover = 'https:' + cover;
                 if (!cover.startsWith('http')) cover = SITE + cover;
-                // 去掉可能导致问题的参数，并加图片代理
+                // 阿里云图片的 ?imageslim 参数可能被 CDN 拒绝，去掉试试
                 cover = cover.split('?')[0];
-                cover = 'https://images.weserv.nl/?url=' + encodeURIComponent(cover);
             }
 
             cards.push({
