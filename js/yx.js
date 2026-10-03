@@ -19,9 +19,9 @@ let appConfig = {
     title: '一席',
     site: SITE,
     tabs: [
-        { name: '演讲', ext: { id: 'speech' } },
-        { name: '枝桠', ext: { id: 'zhiya' } },
-        { name: '记录', ext: { id: 'record' } },
+        { name: '首页', ext: { id: 'speech', fixedPage: 1 } },
+        { name: '演讲', ext: { id: 'speech', fixedPage: 2 } },
+        { name: '记录', ext: { id: 'speech', fixedPage: 3 } },
     ],
 };
 
@@ -33,7 +33,7 @@ async function getConfig() {
 async function getCards(ext) {
     ext = argsify(ext);
     let cards = [];
-    let page = ext.page || 1;
+    let page = ext.fixedPage || ext.page || 1;
     let id = ext.id || 'speech';
 
     const url = `${API_SITE}/${id}/?page=${page}&page_size=20&category_id=&order_by=0`;
@@ -68,18 +68,14 @@ async function getCards(ext) {
                     vod_remarks: speaker + (time ? ' · ' + time : ''),
                     ext: { id: vid, type: 0 },
                 });
-            } catch (e) {
-                // 单个视频出错不影响其他
-            }
+            } catch (e) {}
         }
-    } catch (e) {
-        // 请求失败，返回空列表
-    }
+    } catch (e) {}
 
     return jsonify({ list: cards });
 }
 
-// 剧集（清晰度）
+// 剧集：只取最高清晰度的那一个
 async function getTracks(ext) {
     ext = argsify(ext);
     let id = ext.id;
@@ -94,19 +90,23 @@ async function getTracks(ext) {
         const base = (json && json.data && json.data.base_items) ? json.data.base_items : {};
         const videoUrls = base.video_url || [];
 
-        for (let i = 0; i < videoUrls.length; i++) {
-            const v = videoUrls[i];
-            if (v && v.video_url) {
-                let playUrl = String(v.video_url).replace('http:', 'https:');
-                tracks.push({
-                    name: v.type_name ? String(v.type_name) : ('清晰度' + v.type),
-                    pan: '',
-                    ext: { url: playUrl },
-                });
-            }
-        }
+        // 过滤掉没有地址的项，并按 type 从大到小排序（type 越大越清晰）
+        const validVideos = videoUrls
+            .filter(v => v && v.video_url)
+            .sort((a, b) => (b.type || 0) - (a.type || 0));
 
-        if (tracks.length === 0 && base.audio_url) {
+        if (validVideos.length > 0) {
+            // 取最高清晰度
+            const best = validVideos[0];
+            let playUrl = String(best.video_url).replace('http:', 'https:');
+            let name = best.type_name ? String(best.type_name) : ('清晰度' + best.type);
+            tracks.push({
+                name: name,
+                pan: '',
+                ext: { url: playUrl },
+            });
+        } else if (base.audio_url) {
+            // 没有视频，退而求其次用音频
             tracks.push({
                 name: '音频',
                 pan: '',
