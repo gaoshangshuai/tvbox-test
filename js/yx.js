@@ -65,13 +65,11 @@ async function getCards(ext) {
     return jsonify({ list: cards });
 }
 
-// ★★★ 调试版 getTracks：把每个清晰度的 URL 显示出来 ★★★
+// ★★★ 这个版本会把原始 JSON 直接显示在详情页的标题里 ★★★
 async function getTracks(ext) {
     ext = argsify(ext);
     let id = ext.id;
     let type = ext.type || 0;
-    let groups = [];
-    let tracks = [];
 
     try {
         const url = `${API_H5}/play_detail/?video_type=${type}&video_id=${id}&album_id=0`;
@@ -80,7 +78,11 @@ async function getTracks(ext) {
         const base = (json && json.data && json.data.base_items) ? json.data.base_items : {};
         const videoUrls = base.video_url || [];
 
-        // 把原始 URL 显示出来，方便排查
+        // 把原始 JSON 转成字符串，放在 title 里
+        const rawJson = JSON.stringify(videoUrls);
+
+        // 从原始 JSON 里抓出所有 mp4/m3u8 链接
+        let tracks = [];
         for (let i = 0; i < videoUrls.length; i++) {
             const v = videoUrls[i];
             if (v && v.video_url) {
@@ -92,19 +94,20 @@ async function getTracks(ext) {
             }
         }
 
-        // 额外加一条调试信息
-        tracks.push({
-            name: '调试: 原始URL',
-            pan: '',
-            ext: { url: JSON.stringify(videoUrls) },
+        return jsonify({
+            list: [{
+                title: rawJson.substring(0, 200),  // 只显示前200字符
+                tracks: tracks,
+            }],
         });
-    } catch (e) {}
-
-    if (tracks.length > 0) {
-        groups.push({ title: '默认分组', tracks: tracks });
+    } catch (e) {
+        return jsonify({
+            list: [{
+                title: '请求失败: ' + String(e.message),
+                tracks: [],
+            }],
+        });
     }
-
-    return jsonify({ list: groups });
 }
 
 async function getPlayinfo(ext) {
