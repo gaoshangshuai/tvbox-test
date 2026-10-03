@@ -68,18 +68,12 @@ async function getCards(ext) {
 
                 const time = item.time ? String(item.time) : '';
 
-                // 如果列表里带了 video_type，优先用它，否则用 -1 表示自动探测
-                let vtype = -1;
-                if (item.video_type !== undefined && item.video_type !== null) {
-                    vtype = item.video_type;
-                }
-
                 cards.push({
                     vod_id: vid,
                     vod_name: title,
                     vod_pic: cover,
                     vod_remarks: speaker + (time ? ' · ' + time : ''),
-                    ext: { id: vid, type: vtype },
+                    ext: { id: vid, type: -1 },
                 });
 
                 seenTitles.add(title);
@@ -113,31 +107,19 @@ async function tryPlayDetail(vid, type) {
     return null;
 }
 
-// 剧集：自动探测 video_type
+// 剧集：自动探测 video_type，找到第一个有视频地址的就用
 async function getTracks(ext) {
     ext = argsify(ext);
     let id = ext.id;
-    let type = ext.type;
-
     let groups = [];
     let tracks = [];
 
-    // 如果列表里已经给了明确的 type（>=0），优先用它
-    if (type !== undefined && type !== null && type >= 0) {
-        const result = await tryPlayDetail(id, type);
+    // 依次尝试所有候选 type，直到拿到视频地址
+    for (let i = 0; i < VIDEO_TYPES.length; i++) {
+        const result = await tryPlayDetail(id, VIDEO_TYPES[i]);
         if (result) {
             tracks.push({ name: result.name, pan: '', ext: { url: result.url } });
-        }
-    }
-
-    // 如果没拿到，依次尝试所有候选 type
-    if (tracks.length === 0) {
-        for (let i = 0; i < VIDEO_TYPES.length; i++) {
-            const result = await tryPlayDetail(id, VIDEO_TYPES[i]);
-            if (result) {
-                tracks.push({ name: result.name, pan: '', ext: { url: result.url } });
-                break;  // 找到一个就够了
-            }
+            break;
         }
     }
 
