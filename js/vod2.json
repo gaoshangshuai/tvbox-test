@@ -1,7 +1,13 @@
 {
+  "sites": [
+    {
   "key": "xxqg",
   "name": "学习强国",
   "type": 3,
   "api": "csp_xxqg",
   "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/xxqg.js"
 }
+  ]
+}
+
+
