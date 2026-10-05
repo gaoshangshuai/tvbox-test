@@ -13,7 +13,14 @@
       "type": 3,
       "api": "csp_yx",
       "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/yx.js"
-    }
+    },
+    {
+  "key": "yssr",
+  "name": "央视少儿",
+  "type": 3,
+  "api": "csp_yssr",
+  "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/yssr.js"
+}
   ]
 }
 
