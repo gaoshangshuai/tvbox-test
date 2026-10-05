@@ -14,7 +14,6 @@ const HEADERS = {
     'Cookie': 'Hm_lvt_889adc48ccf05684181736d6e2e31ed4=1790986893; Hm_lpvt_889adc48ccf05684181736d6e2e31ed4=1790986893; HMACCOUNT=9F8659EE0B2375FA',
 };
 
-// 常见的 video_type 候选值
 const VIDEO_TYPES = [0, 1, 2, 3, 7, 10, 17];
 
 let appConfig = {
@@ -32,12 +31,26 @@ async function getConfig() {
     return jsonify(appConfig);
 }
 
-// 列表
+// ★ 安全解析 ext
+function safeArgsify(ext) {
+    if (ext == null) return {};
+    if (typeof ext === 'object') return ext;
+    try {
+        return argsify(ext);
+    } catch (e) {
+        return {};
+    }
+}
+
+// 列表（兼容多种分页参数名）
 async function getCards(ext) {
-    ext = argsify(ext);
+    ext = safeArgsify(ext);
     let cards = [];
-    let page = ext.page || 1;
     let id = ext.id || 'speech';
+
+    // ★ 兼容多种分页参数名
+    let page = parseInt(ext.page || ext.pg || ext.pageNum || 1);
+    if (isNaN(page) || page < 1) page = 1;
 
     const url = `${API_SITE}/${id}/?page=${page}&page_size=20&category_id=&order_by=0`;
     const seenTitles = new Set();
@@ -79,7 +92,12 @@ async function getCards(ext) {
                 seenTitles.add(title);
             } catch (e) {}
         }
-    } catch (e) {}
+
+        $print('一席 ' + id + ' 第 ' + page + ' 页加载条数: ' + cards.length);
+
+    } catch (e) {
+        $print('一席列表失败: ' + e.message);
+    }
 
     return jsonify({ list: cards });
 }
@@ -109,12 +127,16 @@ async function tryPlayDetail(vid, type) {
 
 // 剧集：自动探测 video_type，找到第一个有视频地址的就用
 async function getTracks(ext) {
-    ext = argsify(ext);
+    ext = safeArgsify(ext);
     let id = ext.id;
     let groups = [];
     let tracks = [];
 
-    // 依次尝试所有候选 type，直到拿到视频地址
+    if (!id) {
+        tracks.push({ name: '缺少视频ID', pan: '', ext: { url: '' } });
+        return jsonify({ list: [{ title: '默认分组', tracks: tracks }] });
+    }
+
     for (let i = 0; i < VIDEO_TYPES.length; i++) {
         const result = await tryPlayDetail(id, VIDEO_TYPES[i]);
         if (result) {
@@ -125,6 +147,9 @@ async function getTracks(ext) {
 
     if (tracks.length > 0) {
         groups.push({ title: '默认分组', tracks: tracks });
+    } else {
+        tracks.push({ name: '未找到播放地址', pan: '', ext: { url: '' } });
+        groups.push({ title: '默认分组', tracks: tracks });
     }
 
     return jsonify({ list: groups });
@@ -132,7 +157,7 @@ async function getTracks(ext) {
 
 // 播放
 async function getPlayinfo(ext) {
-    ext = argsify(ext);
+    ext = safeArgsify(ext);
     const url = ext.url;
     if (!url) return jsonify({ urls: [] });
 
@@ -146,7 +171,67 @@ async function getPlayinfo(ext) {
     });
 }
 
-// 搜索（暂不支持）
+// 搜索（本地搜索：拉取三个分类的前 5 页数据进行过滤）
 async function search(ext) {
-    return jsonify({ list: [] });
+    let extObj = safeArgsify(ext);
+
+    // ★ 兼容多种关键词参数名
+    let wd = '';
+    if (typeof ext === 'string' && ext.indexOf('{') !== 0) {
+        wd = ext.trim();
+    } else if (extObj) {
+        wd = (extObj.wd || extObj.key || extObj.text || extObj.keyword || extObj.WD || '').toString().trim();
+    }
+    try {
+        const decoded = decodeURIComponent(wd);
+        if (decoded && decoded !== wd) wd = decoded;
+    } catch (e) {}
+
+    $print('一席搜索关键词: [' + wd + ']');
+
+    if (!wd) return jsonify({ list: [] });
+
+    const categories = ['speech', 'record', 'zhiya'];
+    const allCards = [];
+
+    for (let ci = 0; ci < categories.length; ci++) {
+        const catId = categories[ci];
+        try {
+            for (let page = 1; page <= 5; page++) {
+                const url = `${API_SITE}/${catId}/?page=${page}&page_size=20&category_id=&order_by=0`;
+                const { data } = await $fetch.get(url, { headers: HEADERS });
+                const json = argsify(data);
+                const list = json && json.data && json.data.items ? json.data.items : [];
+                if (list.length === 0) break;
+
+                list.forEach(item => {
+                    if (!item) return;
+                    const title = item.title ? String(item.title).replace(/\s+/g, '').trim() : '';
+                    if (!title || title.indexOf(wd) === -1) return;
+
+                    const vid = item.id ? String(item.id) : '';
+                    if (!vid) return;
+
+                    let cover = item.cover ? String(item.cover) : '';
+                    if (cover && cover.indexOf('//') === 0) cover = 'https:' + cover;
+
+                    let speaker = '';
+                    if (item.speak && typeof item.speak === 'object' && item.speak.name) {
+                        speaker = String(item.speak.name);
+                    }
+
+                    allCards.push({
+                        vod_id: vid,
+                        vod_name: title,
+                        vod_pic: cover,
+                        vod_remarks: speaker,
+                        ext: { id: vid, type: -1 },
+                    });
+                });
+            }
+        } catch (e) {}
+    }
+
+    $print('一席搜索命中: ' + allCards.length);
+    return jsonify({ list: allCards });
 }
