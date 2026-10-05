@@ -4,7 +4,7 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit
 const SITE = 'https://vod.cctv.cn';
 // ★ 列表接口的模块 ID（央视动画片库）
 const LIST_MODULE_ID = 'Page1547549227742425';
-// ★ 接口基础 URL（两个接口共用）
+// ★ 接口基础 URL
 const API_BASE = 'https://api.cctv.cn/childmobileinf/rest/cctv/cardgroups/share';
 
 const HEADERS = {
@@ -38,7 +38,7 @@ async function fetchCardGroups(cardgroupId, pageSize) {
     const url = API_BASE + '?cb=fun&json=' + encodeURIComponent(jsonParam) + '&callback=__jp0';
     const { data } = await $fetch.get(url, { headers: HEADERS });
     let text = String(data);
-    // 去掉 JSONP 外壳，例如 fun({...}) 或 __jp0({...})
+    // 去掉 JSONP 外壳：fun({...}) 或 __jp0({...})
     const start = text.indexOf('(');
     const end = text.lastIndexOf(')');
     if (start !== -1 && end !== -1) {
@@ -47,7 +47,7 @@ async function fetchCardGroups(cardgroupId, pageSize) {
     return argsify(text);
 }
 
-// ★★★ 获取动画列表 ★★★
+// ★★★ 获取动画列表（双重去重：id + title）★★★
 async function getCards(ext) {
     ext = argsify(ext);
     let cards = [];
@@ -65,15 +65,26 @@ async function getCards(ext) {
             });
         }
 
-        // 去重（按 id）
-        const added = new Set();
-        allItems.forEach(item => {
-            let id = item.id || '';
-            if (!id) return;
-            if (added.has(id)) return;
-            added.add(id);
+        // ★ 双重去重：按 id 和 title 分别记录
+        const seenIds = new Set();
+        const seenTitles = new Set();
 
-            // 封面：photo.thumb，可能是 http 开头，也可能是 // 开头
+        allItems.forEach(item => {
+            let id = (item.id || '').trim();
+            let title = (item.title || '').trim();
+
+            // 没有 id 也没有 title 的直接跳过
+            if (!id && !title) return;
+
+            // id 已存在，跳过
+            if (id && seenIds.has(id)) return;
+            // title 已存在，跳过（防止 id 不同但同一动画）
+            if (title && seenTitles.has(title)) return;
+
+            if (id) seenIds.add(id);
+            if (title) seenTitles.add(title);
+
+            // 封面：photo.thumb
             let cover = '';
             if (item.photo && item.photo.thumb) {
                 cover = item.photo.thumb;
@@ -82,13 +93,16 @@ async function getCards(ext) {
             }
 
             cards.push({
-                vod_id: id,
-                vod_name: item.title || '',
+                vod_id: id || title,   // 万一 id 为空，用 title 兜底
+                vod_name: title,
                 vod_pic: cover,
                 vod_remarks: item.tag || item.date || '',
                 ext: { id: id },
             });
         });
+
+        $print('央视动画列表去重后数量: ' + cards.length);
+
     } catch (e) {
         $print('获取动画列表失败: ' + e.message);
     }
@@ -114,15 +128,23 @@ async function getTracks(ext) {
         if (json.cardgroups && json.cardgroups.length > 1) {
             const episodeGroup = json.cardgroups[1];
             if (episodeGroup.cards) {
+                // ★ 剧集也做一次去重（防止接口返回重复集）
+                const seenEpIds = new Set();
                 episodeGroup.cards.forEach(item => {
+                    let epId = (item.id || '').trim();
                     let epName = item.title || '';
+
+                    // 剧集去重
+                    if (epId && seenEpIds.has(epId)) return;
+                    if (epId) seenEpIds.add(epId);
+
                     let playUrl = '';
                     if (item.video) {
                         // 优先高清 url_hd，其次标清 url
                         playUrl = item.video.url_hd || item.video.url || '';
                     }
                     if (playUrl) {
-                        // HTTP 转 HTTPS，避免部分客户端混合内容拦截
+                        // HTTP 转 HTTPS，避免混合内容拦截
                         playUrl = playUrl.replace(/^http:/, 'https:');
                         tracks.push({ name: epName, pan: '', ext: { url: playUrl } });
                     }
@@ -133,6 +155,7 @@ async function getTracks(ext) {
         if (tracks.length === 0) {
             tracks.push({ name: '未找到剧集', pan: '', ext: { url: '' } });
         }
+
     } catch (e) {
         $print('获取剧集失败: ' + e.message);
         tracks.push({ name: '获取失败', pan: '', ext: { url: '' } });
