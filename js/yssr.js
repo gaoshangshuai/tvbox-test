@@ -2,9 +2,7 @@ const cheerio = createCheerio();
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1';
 
 const SITE = 'https://vod.cctv.cn';
-// ★ 列表接口的模块 ID（央视动画片库）
 const LIST_MODULE_ID = 'Page1547549227742425';
-// ★ 接口基础 URL
 const API_BASE = 'https://api.cctv.cn/childmobileinf/rest/cctv/cardgroups/share';
 
 const HEADERS = {
@@ -25,7 +23,18 @@ async function getConfig() {
     return jsonify(appConfig);
 }
 
-// ★ 通用请求函数：请求央视 cardgroups 接口，自动去 JSONP 外壳
+// ★ 安全解析 ext：兼容字符串 / 对象
+function safeArgsify(ext) {
+    if (ext == null) return {};
+    if (typeof ext === 'object') return ext;
+    try {
+        return argsify(ext);
+    } catch (e) {
+        return {};
+    }
+}
+
+// ★ 通用请求函数
 async function fetchCardGroups(cardgroupId, pageSize) {
     const jsonParam = JSON.stringify({
         cardgroups: cardgroupId,
@@ -38,7 +47,6 @@ async function fetchCardGroups(cardgroupId, pageSize) {
     const url = API_BASE + '?cb=fun&json=' + encodeURIComponent(jsonParam) + '&callback=__jp0';
     const { data } = await $fetch.get(url, { headers: HEADERS });
     let text = String(data);
-    // 去掉 JSONP 外壳：fun({...}) 或 __jp0({...})
     const start = text.indexOf('(');
     const end = text.lastIndexOf(')');
     if (start !== -1 && end !== -1) {
@@ -47,15 +55,19 @@ async function fetchCardGroups(cardgroupId, pageSize) {
     return argsify(text);
 }
 
-// ★★★ 获取动画列表（双重去重：id + title）★★★
-async function getCards(ext) {
-    ext = argsify(ext);
-    let cards = [];
+// ★ 标题归一化（去书名号、空格、标点）
+function normalizeTitle(t) {
+    return (t || '')
+        .replace(/[《》〈〉\s\u3000·．.\-—–_:：;；,，、!！?？"'`~～]/g, '')
+        .trim();
+}
 
+// ★ 提取并去重所有动画卡片
+async function getAllAnimCards() {
+    let cards = [];
     try {
         const json = await fetchCardGroups(LIST_MODULE_ID, 10000);
 
-        // 遍历所有 cardgroups，收集所有动画
         let allItems = [];
         if (json.cardgroups) {
             json.cardgroups.forEach(group => {
@@ -65,26 +77,21 @@ async function getCards(ext) {
             });
         }
 
-        // ★ 双重去重：按 id 和 title 分别记录
         const seenIds = new Set();
-        const seenTitles = new Set();
+        const seenNormTitles = new Set();
 
         allItems.forEach(item => {
             let id = (item.id || '').trim();
             let title = (item.title || '').trim();
+            let normTitle = normalizeTitle(title);
 
-            // 没有 id 也没有 title 的直接跳过
-            if (!id && !title) return;
-
-            // id 已存在，跳过
+            if (!id && !normTitle) return;
             if (id && seenIds.has(id)) return;
-            // title 已存在，跳过（防止 id 不同但同一动画）
-            if (title && seenTitles.has(title)) return;
+            if (normTitle && seenNormTitles.has(normTitle)) return;
 
             if (id) seenIds.add(id);
-            if (title) seenTitles.add(title);
+            if (normTitle) seenNormTitles.add(normTitle);
 
-            // 封面：photo.thumb
             let cover = '';
             if (item.photo && item.photo.thumb) {
                 cover = item.photo.thumb;
@@ -93,7 +100,7 @@ async function getCards(ext) {
             }
 
             cards.push({
-                vod_id: id || title,   // 万一 id 为空，用 title 兜底
+                vod_id: id || normTitle,
                 vod_name: title,
                 vod_pic: cover,
                 vod_remarks: item.tag || item.date || '',
@@ -101,18 +108,32 @@ async function getCards(ext) {
             });
         });
 
-        $print('央视动画列表去重后数量: ' + cards.length);
-
+        $print('央视动画去重后数量: ' + cards.length);
     } catch (e) {
         $print('获取动画列表失败: ' + e.message);
     }
+    return cards;
+}
 
+// ★★★ 获取动画列表（只返回第一页）★★★
+async function getCards(ext) {
+    ext = safeArgsify(ext);
+
+    let page = parseInt(ext.page || ext.pg || ext.pageNum || 1);
+    if (isNaN(page) || page < 1) page = 1;
+
+    if (page > 1) {
+        $print('忽略第 ' + page + ' 页请求（央视接口不分页）');
+        return jsonify({ list: [] });
+    }
+
+    let cards = await getAllAnimCards();
     return jsonify({ list: cards });
 }
 
-// ★★★ 获取剧集列表（含播放地址）★★★
+// ★★★ 获取剧集列表 ★★★
 async function getTracks(ext) {
-    ext = argsify(ext);
+    ext = safeArgsify(ext);
     let id = ext.id;
     let tracks = [];
 
@@ -124,27 +145,22 @@ async function getTracks(ext) {
     try {
         const json = await fetchCardGroups(id, 100000);
 
-        // 剧集列表在第二个 cardgroup 里
         if (json.cardgroups && json.cardgroups.length > 1) {
             const episodeGroup = json.cardgroups[1];
             if (episodeGroup.cards) {
-                // ★ 剧集也做一次去重（防止接口返回重复集）
                 const seenEpIds = new Set();
                 episodeGroup.cards.forEach(item => {
                     let epId = (item.id || '').trim();
                     let epName = item.title || '';
 
-                    // 剧集去重
                     if (epId && seenEpIds.has(epId)) return;
                     if (epId) seenEpIds.add(epId);
 
                     let playUrl = '';
                     if (item.video) {
-                        // 优先高清 url_hd，其次标清 url
                         playUrl = item.video.url_hd || item.video.url || '';
                     }
                     if (playUrl) {
-                        // HTTP 转 HTTPS，避免混合内容拦截
                         playUrl = playUrl.replace(/^http:/, 'https:');
                         tracks.push({ name: epName, pan: '', ext: { url: playUrl } });
                     }
@@ -166,7 +182,7 @@ async function getTracks(ext) {
 
 // ★★★ 播放 ★★★
 async function getPlayinfo(ext) {
-    ext = argsify(ext);
+    ext = safeArgsify(ext);
     let url = ext.url;
     if (!url) return jsonify({ urls: [] });
     return jsonify({
@@ -178,6 +194,31 @@ async function getPlayinfo(ext) {
     });
 }
 
+// ★★★ 搜索（兼容多种关键词参数名）★★★
 async function search(ext) {
-    return jsonify({ list: [] });
+    let extObj = safeArgsify(ext);
+
+    let wd = '';
+    if (typeof ext === 'string' && ext.indexOf('{') !== 0) {
+        wd = ext.trim();
+    } else if (extObj) {
+        wd = (extObj.wd || extObj.key || extObj.text || extObj.keyword || extObj.WD || '').toString().trim();
+    }
+
+    try {
+        const decoded = decodeURIComponent(wd);
+        if (decoded && decoded !== wd) wd = decoded;
+    } catch (e) { }
+
+    $print('搜索关键词: [' + wd + ']');
+
+    if (!wd) return jsonify({ list: [] });
+
+    let allCards = await getAllAnimCards();
+    let result = allCards.filter(card => {
+        return card.vod_name && card.vod_name.indexOf(wd) !== -1;
+    });
+
+    $print('搜索命中数量: ' + result.length);
+    return jsonify({ list: result });
 }
