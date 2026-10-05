@@ -62,6 +62,21 @@ function normalizeTitle(t) {
         .trim();
 }
 
+// ★ 从剧集标题中提取集数（支持"第25集"、"第25话"、"第 25 集"等）
+function extractEpisodeNumber(title) {
+    if (!title) return 999999;
+    // 匹配"第XX集"或"第XX话"、"第XX期"
+    let m = title.match(/第\s*(\d+)\s*[集话期]/);
+    if (m) return parseInt(m[1]) || 999999;
+    // 匹配"第XX"（没跟单位）
+    m = title.match(/第\s*(\d+)/);
+    if (m) return parseInt(m[1]) || 999999;
+    // 匹配纯数字（比如标题就是"01"、"02"）
+    m = title.match(/^(\d+)/);
+    if (m) return parseInt(m[1]) || 999999;
+    return 999999;
+}
+
 // ★ 提取并去重所有动画卡片
 async function getAllAnimCards() {
     let cards = [];
@@ -115,7 +130,7 @@ async function getAllAnimCards() {
     return cards;
 }
 
-// ★★★ 获取动画列表（只返回第一页）★★★
+// ★★★ 获取动画列表（只返回第一页，防止无限滚动重复）★★★
 async function getCards(ext) {
     ext = safeArgsify(ext);
 
@@ -131,7 +146,7 @@ async function getCards(ext) {
     return jsonify({ list: cards });
 }
 
-// ★★★ 获取剧集列表 ★★★
+// ★★★ 获取剧集列表（按集数排序）★★★
 async function getTracks(ext) {
     ext = safeArgsify(ext);
     let id = ext.id;
@@ -149,6 +164,8 @@ async function getTracks(ext) {
             const episodeGroup = json.cardgroups[1];
             if (episodeGroup.cards) {
                 const seenEpIds = new Set();
+                // ★ 先收集所有集，带上集数供排序
+                let rawTracks = [];
                 episodeGroup.cards.forEach(item => {
                     let epId = (item.id || '').trim();
                     let epName = item.title || '';
@@ -162,8 +179,21 @@ async function getTracks(ext) {
                     }
                     if (playUrl) {
                         playUrl = playUrl.replace(/^http:/, 'https:');
-                        tracks.push({ name: epName, pan: '', ext: { url: playUrl } });
+                        rawTracks.push({
+                            name: epName,
+                            pan: '',
+                            ext: { url: playUrl },
+                            _epNum: extractEpisodeNumber(epName),  // 用于排序
+                        });
                     }
+                });
+
+                // ★ 按集数从小到大排序
+                rawTracks.sort((a, b) => a._epNum - b._epNum);
+
+                // 去掉临时字段，加入最终 tracks
+                rawTracks.forEach(t => {
+                    tracks.push({ name: t.name, pan: '', ext: t.ext });
                 });
             }
         }
