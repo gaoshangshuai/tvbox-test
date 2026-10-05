@@ -1,11 +1,11 @@
 {
   "sites": [
     {
-  "key": "1958xy",
-  "name": "西影网",
+  "key": "yssr",
+  "name": "央视少儿",
   "type": 3,
-  "api": "csp_1958xy",
-  "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/1958xy.js"
+  "api": "csp_yssr",
+  "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/yssr.js"
 }
   ]
 }
