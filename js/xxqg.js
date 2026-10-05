@@ -3,7 +3,7 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit
 
 const SITE = 'https://www.xuexi.cn';
 
-// ★★★ 各频道的列表数据地址（已去掉临时参数，保证长期稳定）★★★
+// ★★★ 各频道的列表数据地址 ★★★
 const CHANNEL_LIST = {
     // 原有频道
     first: 'https://www.xuexi.cn/lgdata/3m1erqf28h0r.json',
@@ -12,13 +12,13 @@ const CHANNEL_LIST = {
     law: 'https://www.xuexi.cn/lgdata/14s4462g9nl.json',
     nature: 'https://www.xuexi.cn/lgdata/41gt3rsjd6l8.json',
     art: 'https://www.xuexi.cn/lgdata/1bfcj7u3pnl.json',
-    
+
     // 新增频道
     mooc: 'https://www.xuexi.cn/lgdata/31t4ilb2dj0v.json',       // 学习慕课
     military: 'https://www.xuexi.cn/lgdata/3jsf4shrl928.json',   // 军事频道
     party: 'https://www.xuexi.cn/lgdata/vc9n1ga0nl.json',        // 党史频道
-    
-    // 影视频道拆分（电影、电视剧、纪录片、微电影、电视专题片）
+
+    // 影视频道拆分
     movie: 'https://www.xuexi.cn/lgdata/18rkaul9h7l.json',          // 电影
     movie_tv: 'https://www.xuexi.cn/lgdata/109tvcosfnl.json',        // 电视剧
     movie_doc: 'https://www.xuexi.cn/lgdata/17fsu5j4hnl.json',       // 纪录片
@@ -48,7 +48,6 @@ let appConfig = {
         { name: '学习慕课', ext: { id: 'mooc' } },
         { name: '军事频道', ext: { id: 'military' } },
         { name: '党史频道', ext: { id: 'party' } },
-        // 影视频道细分标签
         { name: '电影', ext: { id: 'movie' } },
         { name: '电视剧', ext: { id: 'movie_tv' } },
         { name: '纪录片', ext: { id: 'movie_doc' } },
@@ -61,11 +60,33 @@ async function getConfig() {
     return jsonify(appConfig);
 }
 
-// 获取列表（根据频道 ID 请求不同的 lgdata 地址，并做去重）
+// ★ 安全解析 ext
+function safeArgsify(ext) {
+    if (ext == null) return {};
+    if (typeof ext === 'object') return ext;
+    try {
+        return argsify(ext);
+    } catch (e) {
+        return {};
+    }
+}
+
+// ★★★ 获取列表（只返回第一页，防止无限滚动重复）★★★
 async function getCards(ext) {
-    ext = argsify(ext);
-    let cards = [];
+    ext = safeArgsify(ext);
     let id = ext.id || 'first';
+
+    // ★ 兼容各种分页参数名
+    let page = parseInt(ext.page || ext.pg || ext.pageNum || 1);
+    if (isNaN(page) || page < 1) page = 1;
+
+    // ★ 只有第一页返回数据，后续页返回空列表
+    if (page > 1) {
+        $print('忽略第 ' + page + ' 页请求（学习强国接口不分页）');
+        return jsonify({ list: [] });
+    }
+
+    let cards = [];
 
     const listUrl = CHANNEL_LIST[id];
     if (!listUrl) {
@@ -77,21 +98,39 @@ async function getCards(ext) {
         const { data } = await $fetch.get(listUrl, { headers: HEADERS });
         const list = argsify(data);
 
-        // ★ 去重：避免同一频道内重复推荐
+        // 去重
         const addedIds = new Set();
 
         list.forEach(item => {
-            let cover = item.thumbImage || '';
-            if (cover && cover.indexOf('//') === 0) cover = 'https:' + cover;
+            // ★ 兼容多种封面字段
+            let cover = item.thumbImage
+                || item.image
+                || item.pic
+                || item.cover
+                || item.imageUrl
+                || item.thumbnail
+                || item.picUrl
+                || item.videoCover
+                || item.image_url
+                || '';
 
-            // 兼容多种 ID 字段名称
+            // 补全协议
+            if (cover && cover.indexOf('http') !== 0) {
+                if (cover.indexOf('//') === 0) {
+                    cover = 'https:' + cover;
+                } else {
+                    cover = SITE + (cover.charAt(0) === '/' ? '' : '/') + cover;
+                }
+            }
+
+            // ★ 兼容多种 ID 字段
             let itemId = item.itemId || item.id || item.article_id || item.articleId || '';
             if (!itemId && item.url) {
                 const match = item.url.match(/\/detail\/(\d+)/);
                 if (match) itemId = match[1];
             }
 
-            // 如果该 ID 已存在，则跳过
+            // 去重
             if (itemId && addedIds.has(itemId)) return;
             if (itemId) addedIds.add(itemId);
 
@@ -103,6 +142,9 @@ async function getCards(ext) {
                 ext: { url: item.url, itemId: itemId },
             });
         });
+
+        $print('频道 ' + id + ' 加载条数: ' + cards.length);
+
     } catch (e) {
         $print('获取列表失败: ' + e.message);
     }
@@ -110,9 +152,9 @@ async function getCards(ext) {
     return jsonify({ list: cards });
 }
 
-// 获取剧集：支持单集视频和多集剧集（电视剧、纪录片等）
+// ★★★ 获取剧集（支持单集和多集）★★★
 async function getTracks(ext) {
-    ext = argsify(ext);
+    ext = safeArgsify(ext);
     let itemId = ext.itemId;
     let tracks = [];
 
@@ -126,7 +168,7 @@ async function getTracks(ext) {
         const { data } = await $fetch.get(apiUrl, { headers: HEADERS });
         const text = String(data);
 
-        // 去掉 JSONP 外壳：callback({...})
+        // 去掉 JSONP 外壳
         let jsonStr = text;
         const start = text.indexOf('(');
         const end = text.lastIndexOf(')');
@@ -136,7 +178,7 @@ async function getTracks(ext) {
 
         const detail = argsify(jsonStr);
 
-        // ★★★ 多集剧集结构 (sub_items) ★★★
+        // 多集
         if (detail && detail.sub_items && detail.sub_items.length > 0) {
             detail.sub_items.forEach((subItem, index) => {
                 let epName = subItem.title || ("第" + (index + 1) + "集");
@@ -161,8 +203,8 @@ async function getTracks(ext) {
                     tracks.push({ name: epName, pan: '', ext: { url: bestUrl } });
                 }
             });
-        } 
-        // ★★★ 单集视频结构 (videos) ★★★
+        }
+        // 单集
         else if (detail && detail.videos && detail.videos.length > 0) {
             let bestUrl = '';
             let bestResolution = -1;
@@ -182,7 +224,6 @@ async function getTracks(ext) {
             }
         }
 
-        // 兜底逻辑：如果未找到任何地址
         if (tracks.length === 0) {
             $print('未找到播放地址，详情数据: ' + JSON.stringify(detail).substring(0, 500));
             tracks.push({ name: '未找到播放地址', pan: '', ext: { url: '' } });
@@ -198,7 +239,7 @@ async function getTracks(ext) {
 
 // 播放
 async function getPlayinfo(ext) {
-    ext = argsify(ext);
+    ext = safeArgsify(ext);
     let url = ext.url;
     if (!url) return jsonify({ urls: [] });
 
