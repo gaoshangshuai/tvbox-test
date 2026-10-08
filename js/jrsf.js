@@ -5,6 +5,7 @@ const SITE = 'https://content-static.cctvnews.cctv.com';
 // ★★★ 核心数据包：已精简掉 cover/item_id/desc，仅保留标题和播放链接 ★★★
 // =====================================================================
 const LOCAL_VIDEOS = [
+     { title: "20261008 “挂靠用工”的警示", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/08/155774508933919949238011005/ccc48fd507e34744a6c5927d2c8b94e7-4.m3u8" },
     { title: "20260930 旧案追查", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/30/155484517469074637238011005/15ec9ef7487d4081898fb784d69fc322-4.m3u8" },
 { title: "20260929 恶意下单的代价", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/29/155448311747471360338011005/18b1c6ec9a9f435980a005da4f642cea-4.m3u8" },
 { title: "20260924 警惕“偶像签名”陷阱", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/24/155267081171982746093011005/727efc6246984f329ef1a6a5a469dc03-4.m3u8" },
