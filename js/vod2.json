@@ -21,6 +21,14 @@
   "api": "csp_yssr",
   "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/yssr.js"
 },
+     {
+  "key": "jsp",
+  "name": "今视频app",
+  "type": 3,
+  "api": "csp_jsp",
+  "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/jsp.js"
+},
+    
     {
   "key": "jrsf",
   "name": "央视频",
