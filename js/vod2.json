@@ -21,6 +21,15 @@
   "api": "csp_yssr",
   "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/yssr.js"
 },
+     {
+  "key": "xwlb",
+  "name": "新闻联播",
+  "type": 3,
+  "api": "csp_xwlb",
+  "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/xwlb.js"
+},
+
+    
     {
   "key": "jrsf",
   "name": "央视频",
