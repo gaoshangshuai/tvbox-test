@@ -1,4 +1,4 @@
-// 齐鲁网 TVBox 解析（完整版，修复分集播放）
+// 齐鲁网 TVBox 解析（完整版）
 // 列表接口：https://sdxw.iqilu.com/v2/app/documentary
 // 视频列表接口：https://sdxw.iqilu.com/v1/app/article/common/json
 // 详情接口：https://sdxw.iqilu.com/v2/app/documentary/detail
@@ -26,12 +26,66 @@ async function getConfig() {
     return JSON.stringify(appConfig);
 }
 
+// ---------- 中文数字转换 ----------
+function chineseToNumber(chinese) {
+    const map = {
+        '零': 0, '一': 1, '二': 2, '三': 3, '四': 4,
+        '五': 5, '六': 6, '七': 7, '八': 8, '九': 9,
+        '十': 10, '百': 100, '千': 1000
+    };
+    if (!chinese) return NaN;
+    if (/^\d+$/.test(chinese)) return parseInt(chinese);
+
+    let result = 0, temp = 0, hasDigit = false;
+    for (let i = 0; i < chinese.length; i++) {
+        const char = chinese[i];
+        const num = map[char];
+        if (num === undefined) return NaN;
+        if (num === 10 || num === 100 || num === 1000) {
+            if (temp === 0) temp = 1;
+            result += temp * num;
+            temp = 0;
+        } else {
+            temp = num;
+        }
+        hasDigit = true;
+    }
+    if (!hasDigit) return NaN;
+    return result + temp;
+}
+
+// 从标题中提取集数，用于排序
+function extractEpisodeNumber(title) {
+    if (!title) return 99999;
+
+    // 匹配 "第X集" 等，X 可以是阿拉伯数字或中文数字
+    const match = title.match(/第\s*([0-9]+|[零一二三四五六七八九十百千]+)\s*[集话期]/);
+    if (match && match[1]) {
+        const num = chineseToNumber(match[1]);
+        if (!isNaN(num)) return num;
+    }
+
+    // 匹配 "-第X集"
+    const match2 = title.match(/[\-:：]\s*第\s*([0-9]+|[零一二三四五六七八九十百千]+)/);
+    if (match2 && match2[1]) {
+        const num = chineseToNumber(match2[1]);
+        if (!isNaN(num)) return num;
+    }
+
+    // 匹配末尾的阿拉伯数字
+    const match3 = title.match(/(\d+)\s*$/);
+    if (match3 && match3[1]) return parseInt(match3[1]);
+
+    return 99999;
+}
+
+// ---------- 获取列表 ----------
 async function getCards(ext) {
     ext = JSON.parse(ext);
     const page = ext.page || 1;
     const cateId = ext.id || '237919';
 
-    // ========== 视频分类（可分页） ==========
+    // ========== 视频分类 ==========
     if (cateId === 'video') {
         const url = `${BASE_URL}/v1/app/article/common/json?cateid=101736&page=${page}&_orgid_=21`;
         const headers = {
@@ -46,11 +100,7 @@ async function getCards(ext) {
             let json;
             if (typeof data === 'string') {
                 const match = data.match(/^[^(]+\((.*)\)$/s);
-                if (match) {
-                    json = JSON.parse(match[1]);
-                } else {
-                    json = JSON.parse(data);
-                }
+                json = match ? JSON.parse(match[1]) : JSON.parse(data);
             } else {
                 json = data;
             }
@@ -67,10 +117,7 @@ async function getCards(ext) {
                         vod_pic: picUrl,
                         vod_remarks: item.publish_at || '',
                         vod_content: item.desc || '',
-                        ext: {
-                            id: item.id,
-                            docid: ''
-                        }
+                        ext: { id: item.id, docid: '' }
                     };
                 });
             }
@@ -80,11 +127,9 @@ async function getCards(ext) {
         return JSON.stringify({ list, filter: [] });
     }
 
-    // ========== 影视分类（锁死：仅第1页返回9个系列） ==========
+    // ========== 影视分类（锁死） ==========
     if (cateId === 'movie') {
-        if (page > 1) {
-            return JSON.stringify({ list: [], filter: [] });
-        }
+        if (page > 1) return JSON.stringify({ list: [], filter: [] });
 
         const list = [
             { vod_id: '209', vod_name: '铁道游击队', vod_pic: 'https://img11.iqilu.com/21/2025/01/04/bebce4615f384787ed03096543600a39.jpg', vod_remarks: '影视', vod_content: '', ext: { docid: '209', id: '' } },
@@ -100,11 +145,9 @@ async function getCards(ext) {
         return JSON.stringify({ list, filter: [] });
     }
 
-    // ========== 动画分类（锁死：仅第1页返回8个系列） ==========
+    // ========== 动画分类（锁死） ==========
     if (cateId === 'haier') {
-        if (page > 1) {
-            return JSON.stringify({ list: [], filter: [] });
-        }
+        if (page > 1) return JSON.stringify({ list: [], filter: [] });
 
         const list = [
             { vod_id: '303', vod_name: '剑来', vod_pic: 'https://img8.iqilu.com/vmsimgs/2025/11/07/6123631_794688fd865f4316a3390e626922a45c.png', vod_remarks: '动画', vod_content: '', ext: { docid: '303', id: '' } },
@@ -134,7 +177,6 @@ async function getCards(ext) {
 
         if (json.code === 1 && json.data && json.data.infos) {
             const seriesMap = new Map();
-
             json.data.infos.forEach(item => {
                 const docId = item.id;
                 if (!docId || seriesMap.has(docId)) return;
@@ -150,13 +192,9 @@ async function getCards(ext) {
                     vod_pic: picUrl,
                     vod_remarks: item.year || '',
                     vod_content: item.desc || '',
-                    ext: {
-                        docid: docId,
-                        id: item.id
-                    }
+                    ext: { docid: docId, id: item.id }
                 });
             });
-
             list = Array.from(seriesMap.values());
         }
     } catch (e) {
@@ -166,32 +204,26 @@ async function getCards(ext) {
     return JSON.stringify({ list, filter: [] });
 }
 
-// 获取分集列表（用 docid 请求系列详情）
+// ---------- 获取分集列表（带集数排序） ----------
 async function getTracks(ext) {
     ext = JSON.parse(ext);
     const docId = ext.docid;
     const episodeId = ext.id;
 
-    // 单集视频（视频分类）
+    // 单集视频
     if (!docId && episodeId) {
         return JSON.stringify({
-            list: [{
-                title: '默认线路',
-                tracks: [{ name: '播放', ext: { id: episodeId, docid: '', episodeId: episodeId } }]
-            }]
+            list: [{ title: '默认线路', tracks: [{ name: '播放', ext: { id: episodeId, episodeId: episodeId } }] }]
         });
     }
 
     if (!docId && !episodeId) {
         return JSON.stringify({
-            list: [{
-                title: '默认线路',
-                tracks: [{ name: '播放', ext: { id: ext.id, docid: '', episodeId: '' } }]
-            }]
+            list: [{ title: '默认线路', tracks: [{ name: '播放', ext: { id: ext.id, episodeId: '' } }] }]
         });
     }
 
-    // 系列：请求详情页获取所有分集（此处只传 docid，不传 id，才能拿到全系列列表）
+    // 系列：请求详情页获取所有分集
     const detailUrl = `${BASE_URL}/v2/app/documentary/detail?orgid=21&docid=${docId}`;
     const headers = {
         'User-Agent': UA,
@@ -210,17 +242,9 @@ async function getTracks(ext) {
             const relate = json.data.relateInfo || [];
 
             let allEpisodes = [];
-
-            // 当前集（info）
-            if (info.id && info.title) {
-                allEpisodes.push({ id: info.id, name: info.title });
-            }
-
-            // 关联集（relateInfo）
+            if (info.id && info.title) allEpisodes.push({ id: info.id, name: info.title });
             relate.forEach(item => {
-                if (item.id && item.title) {
-                    allEpisodes.push({ id: item.id, name: item.title });
-                }
+                if (item.id && item.title) allEpisodes.push({ id: item.id, name: item.title });
             });
 
             // 去重
@@ -231,10 +255,14 @@ async function getTracks(ext) {
                 return true;
             });
 
-            // 按 id 排序
-            uniqueEpisodes.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+            // 按集数排序（支持中文数字）
+            uniqueEpisodes.sort((a, b) => {
+                const numA = extractEpisodeNumber(a.name);
+                const numB = extractEpisodeNumber(b.name);
+                if (numA !== numB) return numA - numB;
+                return parseInt(a.id) - parseInt(b.id);
+            });
 
-            // 注意：每个分集的 ext 只传 id（分集 ID），不再传 docid
             tracks = uniqueEpisodes.map(ep => ({
                 name: ep.name,
                 ext: { id: ep.id, episodeId: ep.id }
@@ -251,14 +279,12 @@ async function getTracks(ext) {
     return JSON.stringify({ list: [{ title: '默认线路', tracks }] });
 }
 
-// 【核心修复】获取播放地址：只用 id 参数请求，绝不传 docid
+// ---------- 获取播放地址（只用 id 参数） ----------
 async function getPlayinfo(ext) {
     ext = JSON.parse(ext);
     const episodeId = ext.id || ext.episodeId;
-
     if (!episodeId) return JSON.stringify({ urls: [] });
 
-    // 只用 id 参数请求单集详情（这是拿到指定集播放地址的关键）
     const detailUrl = `${BASE_URL}/v2/app/documentary/detail?id=${episodeId}&orgid=21`;
     const headers = {
         'User-Agent': UA,
@@ -274,9 +300,7 @@ async function getPlayinfo(ext) {
 
         if (json.code === 1 && json.data && json.data.info && json.data.info.media) {
             const mediaList = json.data.info.media;
-            if (mediaList.length > 0) {
-                playUrl = mediaList[0].url || '';
-            }
+            if (mediaList.length > 0) playUrl = mediaList[0].url || '';
         }
     } catch (e) {
         console.error('获取播放地址失败:', e);
