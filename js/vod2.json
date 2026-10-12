@@ -49,6 +49,13 @@
   "api": "csp_ahtv",
   "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/ahtv.js"
 },
+     {
+  "key": "sdtv",
+  "name": "闪电TVapp",
+  "type": 3,
+  "api": "csp_sdtv",
+  "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/sdtvapp.js"
+},
    
     {
   "key": "jrsf",
