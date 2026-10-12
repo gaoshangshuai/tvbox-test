@@ -1,4 +1,4 @@
-// 齐鲁网 TVBox 解析（完整版，锁死动画+影视）
+// 齐鲁网 TVBox 解析（完整版，修复分集播放）
 // 列表接口：https://sdxw.iqilu.com/v2/app/documentary
 // 视频列表接口：https://sdxw.iqilu.com/v1/app/article/common/json
 // 详情接口：https://sdxw.iqilu.com/v2/app/documentary/detail
@@ -87,78 +87,15 @@ async function getCards(ext) {
         }
 
         const list = [
-            {
-                vod_id: '209',
-                vod_name: '铁道游击队',
-                vod_pic: 'https://img11.iqilu.com/21/2025/01/04/bebce4615f384787ed03096543600a39.jpg',
-                vod_remarks: '影视',
-                vod_content: '',
-                ext: { docid: '209', id: '' }
-            },
-            {
-                vod_id: '206',
-                vod_name: '三毛流浪记',
-                vod_pic: 'https://img11.iqilu.com/21/2025/01/04/249db72225a9c7e94767e52c97b55abe.jpeg',
-                vod_remarks: '影视',
-                vod_content: '',
-                ext: { docid: '206', id: '' }
-            },
-            {
-                vod_id: '205',
-                vod_name: '小兵张嘎',
-                vod_pic: 'https://img11.iqilu.com/21/2025/01/04/ceb45f85f6c89041aaeadfe90293d3ec.jpeg',
-                vod_remarks: '影视',
-                vod_content: '',
-                ext: { docid: '205', id: '' }
-            },
-            {
-                vod_id: '165',
-                vod_name: '人世间',
-                vod_pic: 'https://img11.iqilu.com/21/2025/01/02/1e932f8522c84c52a29ad9a535abb3e2.jpg',
-                vod_remarks: '影视',
-                vod_content: '',
-                ext: { docid: '165', id: '' }
-            },
-            {
-                vod_id: '164',
-                vod_name: '八仙过海',
-                vod_pic: 'https://img11.iqilu.com/21/2025/01/02/f33cf4293def43eb3ee0b974afebb561.jpg',
-                vod_remarks: '影视',
-                vod_content: '',
-                ext: { docid: '164', id: '' }
-            },
-            {
-                vod_id: '160',
-                vod_name: '地下交通站',
-                vod_pic: 'https://img11.iqilu.com/21/2025/01/02/ad1d5bc358a6a1ad051fafbb2387046f.jpg',
-                vod_remarks: '影视',
-                vod_content: '',
-                ext: { docid: '160', id: '' }
-            },
-            {
-                vod_id: '256',
-                vod_name: '洋女婿的中国年',
-                vod_pic: 'https://img11.iqilu.com/21/2025/01/26/7b0eabc19db606d0ec1f263fda1fe89f.png',
-                vod_remarks: '影视',
-                vod_content: '',
-                ext: { docid: '256', id: '' }
-            },
-            {
-                vod_id: '212',
-                vod_name: '2024颜回新传',
-                vod_pic: 'https://img11.iqilu.com/21/2025/01/13/06e4009f6887678651e7dc014c131a74.jpg',
-                vod_remarks: '影视',
-                vod_content: '',
-                ext: { docid: '212', id: '' }
-            },
-            {
-                vod_id: '166',
-                vod_name: '绘梦潍坊',
-                vod_pic: 'https://img11.iqilu.com/21/2025/01/03/acbb6422397d55b476e3427668114058.jpg',
-                vod_remarks: '影视',
-                vod_content: '',
-                ext: { docid: '166', id: '' }
-            }
+            { vod_id: '209', vod_name: '铁道游击队', vod_pic: 'https://img11.iqilu.com/21/2025/01/04/bebce4615f384787ed03096543600a39.jpg', vod_remarks: '影视', vod_content: '', ext: { docid: '209', id: '' } },
+            { vod_id: '206', vod_name: '三毛流浪记', vod_pic: 'https://img11.iqilu.com/21/2025/01/04/249db72225a9c7e94767e52c97b55abe.jpeg', vod_remarks: '影视', vod_content: '', ext: { docid: '206', id: '' } },
+            { vod_id: '205', vod_name: '小兵张嘎', vod_pic: 'https://img11.iqilu.com/21/2025/01/04/ceb45f85f6c89041aaeadfe90293d3ec.jpeg', vod_remarks: '影视', vod_content: '', ext: { docid: '205', id: '' } },
+            { vod_id: '165', vod_name: '人世间', vod_pic: 'https://img11.iqilu.com/21/2025/01/02/1e932f8522c84c52a29ad9a535abb3e2.jpg', vod_remarks: '影视', vod_content: '', ext: { docid: '165', id: '' } },
+            { vod_id: '164', vod_name: '八仙过海', vod_pic: 'https://img11.iqilu.com/21/2025/01/02/f33cf4293def43eb3ee0b974afebb561.jpg', vod_remarks: '影视', vod_content: '', ext: { docid: '164', id: '' } },
+            { vod_id: '160', vod_name: '地下交通站', vod_pic: 'https://img11.iqilu.com/21/2025/01/02/ad1d5bc358a6a1ad051fafbb2387046f.jpg', vod_remarks: '影视', vod_content: '', ext: { docid: '160', id: '' } },
+            { vod_id: '256', vod_name: '洋女婿的中国年', vod_pic: 'https://img11.iqilu.com/21/2025/01/26/7b0eabc19db606d0ec1f263fda1fe89f.png', vod_remarks: '影视', vod_content: '', ext: { docid: '256', id: '' } },
+            { vod_id: '212', vod_name: '2024颜回新传', vod_pic: 'https://img11.iqilu.com/21/2025/01/13/06e4009f6887678651e7dc014c131a74.jpg', vod_remarks: '影视', vod_content: '', ext: { docid: '212', id: '' } },
+            { vod_id: '166', vod_name: '绘梦潍坊', vod_pic: 'https://img11.iqilu.com/21/2025/01/03/acbb6422397d55b476e3427668114058.jpg', vod_remarks: '影视', vod_content: '', ext: { docid: '166', id: '' } }
         ];
         return JSON.stringify({ list, filter: [] });
     }
@@ -170,75 +107,19 @@ async function getCards(ext) {
         }
 
         const list = [
-            {
-                vod_id: '303',
-                vod_name: '剑来',
-                vod_pic: 'https://img8.iqilu.com/vmsimgs/2025/11/07/6123631_794688fd865f4316a3390e626922a45c.png',
-                vod_remarks: '动画',
-                vod_content: '',
-                ext: { docid: '303', id: '' }
-            },
-            {
-                vod_id: '301',
-                vod_name: '恰同学少年',
-                vod_pic: 'https://img8.iqilu.com/vmsimgs/2025/11/06/6133057_a3f4d37b377548c786e0edf5fd165374.jpg',
-                vod_remarks: '动画',
-                vod_content: '',
-                ext: { docid: '301', id: '' }
-            },
-            {
-                vod_id: '302',
-                vod_name: '宠物旅店',
-                vod_pic: 'https://img11.litenews.cn/21/2025/11/07/79a32654ac824ee9aa9b467c14eb3e72.jpg',
-                vod_remarks: '动画',
-                vod_content: '',
-                ext: { docid: '302', id: '' }
-            },
-            {
-                vod_id: '300',
-                vod_name: '大山里的“梦之队”',
-                vod_pic: 'https://img8.iqilu.com/vmsimgs/2025/11/06/6100756_008fd4e66ad848a8aa6061b454977951.png',
-                vod_remarks: '动画',
-                vod_content: '',
-                ext: { docid: '300', id: '' }
-            },
-            {
-                vod_id: '299',
-                vod_name: '故宫里的大怪兽之月光迷宫',
-                vod_pic: 'https://img8.iqilu.com/vmsimgs/2025/11/06/6102117_e3dcf1fefda04855a3e150a101180c38.jpg',
-                vod_remarks: '动画',
-                vod_content: '',
-                ext: { docid: '299', id: '' }
-            },
-            {
-                vod_id: '298',
-                vod_name: '下姜村的共同富裕梦',
-                vod_pic: 'https://img8.iqilu.com/vmsimgs/2025/11/06/6133754_e7651ea5299c45d5a084da837832580e.jpg',
-                vod_remarks: '动画',
-                vod_content: '',
-                ext: { docid: '298', id: '' }
-            },
-            {
-                vod_id: '297',
-                vod_name: '家有灶君',
-                vod_pic: 'https://img8.iqilu.com/vmsimgs/2025/11/06/6114530_0af75c6a1f664250a203f00a8184ac8c.png',
-                vod_remarks: '动画',
-                vod_content: '',
-                ext: { docid: '297', id: '' }
-            },
-            {
-                vod_id: '277',
-                vod_name: '海尔兄弟',
-                vod_pic: 'https://img11.iqilu.com/21/2025/03/31/f7bbc695ef3945a06ae998095166db30.jpg',
-                vod_remarks: '动画',
-                vod_content: '经典动画',
-                ext: { docid: '277', id: '' }
-            }
+            { vod_id: '303', vod_name: '剑来', vod_pic: 'https://img8.iqilu.com/vmsimgs/2025/11/07/6123631_794688fd865f4316a3390e626922a45c.png', vod_remarks: '动画', vod_content: '', ext: { docid: '303', id: '' } },
+            { vod_id: '301', vod_name: '恰同学少年', vod_pic: 'https://img8.iqilu.com/vmsimgs/2025/11/06/6133057_a3f4d37b377548c786e0edf5fd165374.jpg', vod_remarks: '动画', vod_content: '', ext: { docid: '301', id: '' } },
+            { vod_id: '302', vod_name: '宠物旅店', vod_pic: 'https://img11.litenews.cn/21/2025/11/07/79a32654ac824ee9aa9b467c14eb3e72.jpg', vod_remarks: '动画', vod_content: '', ext: { docid: '302', id: '' } },
+            { vod_id: '300', vod_name: '大山里的“梦之队”', vod_pic: 'https://img8.iqilu.com/vmsimgs/2025/11/06/6100756_008fd4e66ad848a8aa6061b454977951.png', vod_remarks: '动画', vod_content: '', ext: { docid: '300', id: '' } },
+            { vod_id: '299', vod_name: '故宫里的大怪兽之月光迷宫', vod_pic: 'https://img8.iqilu.com/vmsimgs/2025/11/06/6102117_e3dcf1fefda04855a3e150a101180c38.jpg', vod_remarks: '动画', vod_content: '', ext: { docid: '299', id: '' } },
+            { vod_id: '298', vod_name: '下姜村的共同富裕梦', vod_pic: 'https://img8.iqilu.com/vmsimgs/2025/11/06/6133754_e7651ea5299c45d5a084da837832580e.jpg', vod_remarks: '动画', vod_content: '', ext: { docid: '298', id: '' } },
+            { vod_id: '297', vod_name: '家有灶君', vod_pic: 'https://img8.iqilu.com/vmsimgs/2025/11/06/6114530_0af75c6a1f664250a203f00a8184ac8c.png', vod_remarks: '动画', vod_content: '', ext: { docid: '297', id: '' } },
+            { vod_id: '277', vod_name: '海尔兄弟', vod_pic: 'https://img11.iqilu.com/21/2025/03/31/f7bbc695ef3945a06ae998095166db30.jpg', vod_remarks: '动画', vod_content: '经典动画', ext: { docid: '277', id: '' } }
         ];
         return JSON.stringify({ list, filter: [] });
     }
 
-    // ========== 其它纪录片分类（自然/历史/人文，可分页） ==========
+    // ========== 其它纪录片分类（自然/历史/人文） ==========
     const url = `${BASE_URL}/v2/app/documentary?orgid=21&cateid=${cateId}&year=&pagesize=${PAGE_SIZE}&page=${page}`;
     const headers = {
         'User-Agent': UA,
@@ -285,12 +166,13 @@ async function getCards(ext) {
     return JSON.stringify({ list, filter: [] });
 }
 
-// 获取分集列表
+// 获取分集列表（用 docid 请求系列详情）
 async function getTracks(ext) {
     ext = JSON.parse(ext);
     const docId = ext.docid;
     const episodeId = ext.id;
 
+    // 单集视频（视频分类）
     if (!docId && episodeId) {
         return JSON.stringify({
             list: [{
@@ -309,7 +191,8 @@ async function getTracks(ext) {
         });
     }
 
-    const detailUrl = `${BASE_URL}/v2/app/documentary/detail?orgid=21&docid=${docId || ''}${episodeId ? `&id=${episodeId}` : ''}`;
+    // 系列：请求详情页获取所有分集（此处只传 docid，不传 id，才能拿到全系列列表）
+    const detailUrl = `${BASE_URL}/v2/app/documentary/detail?orgid=21&docid=${docId}`;
     const headers = {
         'User-Agent': UA,
         'Referer': 'https://sdxw.iqilu.com/w/documentary_detail/ZG9jLTIxLTE1OA==.html',
@@ -328,16 +211,19 @@ async function getTracks(ext) {
 
             let allEpisodes = [];
 
+            // 当前集（info）
             if (info.id && info.title) {
                 allEpisodes.push({ id: info.id, name: info.title });
             }
 
+            // 关联集（relateInfo）
             relate.forEach(item => {
                 if (item.id && item.title) {
                     allEpisodes.push({ id: item.id, name: item.title });
                 }
             });
 
+            // 去重
             const seen = new Set();
             const uniqueEpisodes = allEpisodes.filter(ep => {
                 if (seen.has(ep.id)) return false;
@@ -345,11 +231,13 @@ async function getTracks(ext) {
                 return true;
             });
 
+            // 按 id 排序
             uniqueEpisodes.sort((a, b) => parseInt(a.id) - parseInt(b.id));
 
+            // 注意：每个分集的 ext 只传 id（分集 ID），不再传 docid
             tracks = uniqueEpisodes.map(ep => ({
                 name: ep.name,
-                ext: { id: ep.id, docid: docId, episodeId: '' }
+                ext: { id: ep.id, episodeId: ep.id }
             }));
         }
     } catch (e) {
@@ -357,25 +245,21 @@ async function getTracks(ext) {
     }
 
     if (tracks.length === 0) {
-        tracks = [{ name: '播放', ext: { id: episodeId || ext.id, docid: docId, episodeId: episodeId || '' } }];
+        tracks = [{ name: '播放', ext: { id: episodeId || ext.id, episodeId: episodeId || '' } }];
     }
 
     return JSON.stringify({ list: [{ title: '默认线路', tracks }] });
 }
 
-// 获取播放地址
+// 【核心修复】获取播放地址：只用 id 参数请求，绝不传 docid
 async function getPlayinfo(ext) {
     ext = JSON.parse(ext);
     const episodeId = ext.id || ext.episodeId;
-    const docId = ext.docid;
 
-    if (!episodeId && !docId) return JSON.stringify({ urls: [] });
+    if (!episodeId) return JSON.stringify({ urls: [] });
 
-    let detailUrl = `${BASE_URL}/v2/app/documentary/detail?orgid=21&docid=${docId || ''}`;
-    if (episodeId) {
-        detailUrl += `&id=${episodeId}`;
-    }
-
+    // 只用 id 参数请求单集详情（这是拿到指定集播放地址的关键）
+    const detailUrl = `${BASE_URL}/v2/app/documentary/detail?id=${episodeId}&orgid=21`;
     const headers = {
         'User-Agent': UA,
         'Referer': 'https://sdxw.iqilu.com/w/documentary_detail/ZG9jLTIxLTE1OA==.html',
