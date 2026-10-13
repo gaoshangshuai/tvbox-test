@@ -23,40 +23,47 @@
 },
      {
   "key": "jsp",
-  "name": "今视频app",
+  "name": "今视频",
   "type": 3,
   "api": "csp_jsp",
   "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/jsp.js"
 },
      {
   "key": "js",
-  "name": "冀时app",
+  "name": "冀时新闻",
   "type": 3,
   "api": "csp_js",
   "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/js.js"
 },
     {
   "key": "bjsj",
-  "name": "北京时间app",
+  "name": "北京时间",
   "type": 3,
   "api": "csp_bjsj",
   "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/bjsj.js"
 },
     {
   "key": "ahtv",
-  "name": "安徽tvapp",
+  "name": "安徽TV",
   "type": 3,
   "api": "csp_ahtv",
   "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/ahtv.js"
 },
      {
   "key": "sdtv",
-  "name": "闪电TVapp",
+  "name": "闪电新闻",
   "type": 3,
   "api": "csp_sdtv",
   "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/sdtvapp.js"
 },
-   
+     {
+  "key": "dxxw",
+  "name": "大象新闻",
+  "type": 3,
+  "api": "csp_dxxw",
+  "ext": "https://ghp.xptvhelper.link/ https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/dxxw.js  "
+},
+
     {
   "key": "jrsf",
   "name": "央视频",
