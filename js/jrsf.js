@@ -5,6 +5,17 @@ const SITE = 'https://content-static.cctvnews.cctv.com';
 // ★★★ 核心数据包：已精简掉 cover/item_id/desc，仅保留标题和播放链接 ★★★
 // =====================================================================
 const LOCAL_VIDEOS = [
+     { title: "20261016 伸向未成年人的网络黑手", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/16/156064880938330521918011005/64e1d0ab45be403bb18f09c8be4e2827-4.m3u8" },
+
+{ title: "20261015 追责“虚假退货”", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/15/156028431877878989238011005/790a1584dc3548778f985d18215f7893-4.m3u8" },
+
+{ title: "20261014 追踪雨夜盗鸽贼", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/14/155991757778356224344011005/257e6c1ebf574380a60ab36510982f62-4.m3u8" },
+
+{ title: "20261013 百万赔偿款分配之争", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/13/155955511969266483607011005/82e0013b7acb4e15841225646a739ee5-4.m3u8" },
+
+{ title: "20261012 被篡改的检测数据", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/12/155919954938308198793011005/c9443da2a39245d1857df17aaa6bf85d-4.m3u8" },
+
+{ title: "20261009 自导“劫案”终落网", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/09/155810646718713856418011005/ff7e00e5fbc742a19ba620a30485e7ca-4.m3u8"},
      { title: "20261008 “挂靠用工”的警示", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/08/155774508933919949238011005/ccc48fd507e34744a6c5927d2c8b94e7-4.m3u8" },
     { title: "20260930 旧案追查", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/30/155484517469074637238011005/15ec9ef7487d4081898fb784d69fc322-4.m3u8" },
 { title: "20260929 恶意下单的代价", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/29/155448311747471360338011005/18b1c6ec9a9f435980a005da4f642cea-4.m3u8" },
