@@ -70,6 +70,13 @@
   "api": "csp_kpzg",
   "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/kpzg.js"
 },
+     {
+  "key": "ys4k",
+  "name": "央视4K",
+  "type": 3,
+  "api": "csp_ys4k",
+  "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/ys4k.js"
+},
    
     {
   "key": "jrsf",
