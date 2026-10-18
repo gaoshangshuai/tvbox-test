@@ -2,40 +2,35 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit
 const SITE = 'https://content-static.cctvnews.cctv.com';
 
 // =====================================================================
-// ★★★ 核心数据包：已精简掉 cover/item_id/desc，仅保留标题和播放链接 ★★★
+// ★★★ 核心数据包 ★★★
 // =====================================================================
 const LOCAL_VIDEOS = [
-     { title: "20261016 伸向未成年人的网络黑手", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/16/156064880938330521918011005/64e1d0ab45be403bb18f09c8be4e2827-4.m3u8" },
-
-{ title: "20261015 追责“虚假退货”", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/15/156028431877878989238011005/790a1584dc3548778f985d18215f7893-4.m3u8" },
-
-{ title: "20261014 追踪雨夜盗鸽贼", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/14/155991757778356224344011005/257e6c1ebf574380a60ab36510982f62-4.m3u8" },
-
-{ title: "20261013 百万赔偿款分配之争", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/13/155955511969266483607011005/82e0013b7acb4e15841225646a739ee5-4.m3u8" },
-
-{ title: "20261012 被篡改的检测数据", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/12/155919954938308198793011005/c9443da2a39245d1857df17aaa6bf85d-4.m3u8" },
-
-{ title: "20261009 自导“劫案”终落网", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/09/155810646718713856418011005/ff7e00e5fbc742a19ba620a30485e7ca-4.m3u8"},
-     { title: "20261008 “挂靠用工”的警示", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/08/155774508933919949238011005/ccc48fd507e34744a6c5927d2c8b94e7-4.m3u8" },
+    { title: "20261016 伸向未成年人的网络黑手", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/16/156064880938330521918011005/64e1d0ab45be403bb18f09c8be4e2827-4.m3u8" },
+    { title: "20261015 追责“虚假退货”", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/15/156028431877878989238011005/790a1584dc3548778f985d18215f7893-4.m3u8" },
+    { title: "20261014 追踪雨夜盗鸽贼", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/14/155991757778356224344011005/257e6c1ebf574380a60ab36510982f62-4.m3u8" },
+    { title: "20261013 百万赔偿款分配之争", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/13/155955511969266483607011005/82e0013b7acb4e15841225646a739ee5-4.m3u8" },
+    { title: "20261012 被篡改的检测数据", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/12/155919954938308198793011005/c9443da2a39245d1857df17aaa6bf85d-4.m3u8" },
+    { title: "20261009 自导“劫案”终落网", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/09/155810646718713856418011005/ff7e00e5fbc742a19ba620a30485e7ca-4.m3u8" },
+    { title: "20261008 “挂靠用工”的警示", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/08/155774508933919949238011005/ccc48fd507e34744a6c5927d2c8b94e7-4.m3u8" },
     { title: "20260930 旧案追查", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/30/155484517469074637238011005/15ec9ef7487d4081898fb784d69fc322-4.m3u8" },
-{ title: "20260929 恶意下单的代价", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/29/155448311747471360338011005/18b1c6ec9a9f435980a005da4f642cea-4.m3u8" },
-{ title: "20260924 警惕“偶像签名”陷阱", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/24/155267081171982746093011005/727efc6246984f329ef1a6a5a469dc03-4.m3u8" },
-{ title: "20260923 跨境追毒", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/23/155230706100742553973011005/5042c71e2be84607847d5f408fa4b061-4.m3u8" },
-{ title: "20260922 骗保链条覆灭记", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/22/155194549913441485207011005/a5191c7597644ec99d248bd1a3113c02-4.m3u8" },
-{ title: "20260921 舆情敲诈需严惩", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/21/155158473508939776238011005/897a473655e74055ac337785110822aa-4.m3u8" },
-{ title: "20260918 青藏铁路全线通车二十周年特别策划 护卫“天路”·呵护高原生灵", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/18/155049741696604979638011005/ecbb50eaad3248fd9207ec0ef7f5e46b-4.m3u8" },
-{ title: "20260917 青藏铁路全线通车二十周年特别策划 护卫“天路”·千里巡护通途", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/17/155013428677165875573011005/b25ceb976a37405281a1f01bb2c7d6fc-4.m3u8" },
-{ title: "20260916 青藏铁路全线通车二十周年特别策划 护卫“天路”·雪域生命接力", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/16/154977557895902822873011005/592abfff447d4ea8852c9c357b6bd9a1-4.m3u8" },
-{ title: "20260915 邻里泄愤的代价", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/15/154941145206358426038011005/f4be40b730c747339ad7af61122cb30f-4.m3u8" },
-{ title: "20260914 空宅连环盗窃案", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/14/154904967305583002093011005/984a757744584420b4914b9dfb2ee645-4.m3u8" },
-{ title: "20260911 斩断非法捕捞链", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/11/154795986813382246844011005/7b0a7da02dcf4f1fb3ccdc252856771a-4.m3u8" },
-{ title: "20260910 “游戏礼包”里隐藏的诈骗", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/10/154759995822940570007011005/5fcffe6cffb345ee9b11818dd45bb81d-4.m3u8" },
-{ title: "20260909 虚假养殖集资骗局", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/09/154723865803917312444011005/c21ae867851d4e94b0ac2c2ca6c84bd3-4.m3u8" },
-{ title: "20260907 工伤造假骗保案", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/07/154650959628714803673011005/4043a4382e21409d90c7dc07f8d7a9b1-4.m3u8" },
-{ title: "20260904 斩断盗墓黑手", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/04/154542542788467507638011005/17467905f58e465d8d51f8287b42cb2a-4.m3u8" },
-{ title: "20260903 边境密林的缉捕", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/03/154506662640492954044011005/7d83927a29234b519d196a81ee670b62-4.m3u8" },
-{ title: "20260902 重组家庭的遗嘱之争", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/02/154470099791931392438011005/0c9c96dd7b4c4cbdba38c096058a931f-4.m3u8" },
-{ title: "20260901 折扣票牵出洗钱大案", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/01/154433479173560730093011005/24949b2216604060af800020bedbed0f-4.m3u8" },
+    { title: "20260929 恶意下单的代价", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/29/155448311747471360338011005/18b1c6ec9a9f435980a005da4f642cea-4.m3u8" },
+    { title: "20260924 警惕“偶像签名”陷阱", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/24/155267081171982746093011005/727efc6246984f329ef1a6a5a469dc03-4.m3u8" },
+    { title: "20260923 跨境追毒", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/23/155230706100742553973011005/5042c71e2be84607847d5f408fa4b061-4.m3u8" },
+    { title: "20260922 骗保链条覆灭记", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/22/155194549913441485207011005/a5191c7597644ec99d248bd1a3113c02-4.m3u8" },
+    { title: "20260921 舆情敲诈需严惩", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/21/155158473508939776238011005/897a473655e74055ac337785110822aa-4.m3u8" },
+    { title: "20260918 青藏铁路全线通车二十周年特别策划 护卫“天路”·呵护高原生灵", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/18/155049741696604979638011005/ecbb50eaad3248fd9207ec0ef7f5e46b-4.m3u8" },
+    { title: "20260917 青藏铁路全线通车二十周年特别策划 护卫“天路”·千里巡护通途", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/17/155013428677165875573011005/b25ceb976a37405281a1f01bb2c7d6fc-4.m3u8" },
+    { title: "20260916 青藏铁路全线通车二十周年特别策划 护卫“天路”·雪域生命接力", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/16/154977557895902822873011005/592abfff447d4ea8852c9c357b6bd9a1-4.m3u8" },
+    { title: "20260915 邻里泄愤的代价", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/15/154941145206358426038011005/f4be40b730c747339ad7af61122cb30f-4.m3u8" },
+    { title: "20260914 空宅连环盗窃案", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/14/154904967305583002093011005/984a757744584420b4914b9dfb2ee645-4.m3u8" },
+    { title: "20260911 斩断非法捕捞链", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/11/154795986813382246844011005/7b0a7da02dcf4f1fb3ccdc252856771a-4.m3u8" },
+    { title: "20260910 “游戏礼包”里隐藏的诈骗", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/10/154759995822940570007011005/5fcffe6cffb345ee9b11818dd45bb81d-4.m3u8" },
+    { title: "20260909 虚假养殖集资骗局", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/09/154723865803917312444011005/c21ae867851d4e94b0ac2c2ca6c84bd3-4.m3u8" },
+    { title: "20260907 工伤造假骗保案", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/07/154650959628714803673011005/4043a4382e21409d90c7dc07f8d7a9b1-4.m3u8" },
+    { title: "20260904 斩断盗墓黑手", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/04/154542542788467507638011005/17467905f58e465d8d51f8287b42cb2a-4.m3u8" },
+    { title: "20260903 边境密林的缉捕", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/03/154506662640492954044011005/7d83927a29234b519d196a81ee670b62-4.m3u8" },
+    { title: "20260902 重组家庭的遗嘱之争", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/02/154470099791931392438011005/0c9c96dd7b4c4cbdba38c096058a931f-4.m3u8" },
+    { title: "20260901 折扣票牵出洗钱大案", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/09/01/154433479173560730093011005/24949b2216604060af800020bedbed0f-4.m3u8" },
     { title: "九年缉逃", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/08/31/154397818126372864418011005/a9f8235a53534d14bc833bfee53def65-4.m3u8" },
     { title: "暑期特别策划 司法护航迷途少年", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/08/28/154288990847904154073011005/aacc7cf6b4964d5a877d5a14e994d1c3-4.m3u8" },
     { title: "暑期特别策划 养育不该有伤害", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/08/26/154216214722546893293011005/58fa859c0a3a466fb1ab2bda47ddec4f-4.m3u8" },
@@ -75,13 +70,13 @@ const LOCAL_VIDEOS = [
     { title: "斩断涉诈“网关黑链”", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/07/09/152476620605080371696011005/7e85fe177ccc4462ac0bc4420aa38f8f-4.m3u8" },
     { title: "捣毁新型制毒窝点", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/07/08/152440692960379289912011005/82a8b0ecd75f45bca6536a07104791fa-4.m3u8" },
     { title: "假协议难逃真罪责", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/07/07/152404302177275494812011005/679466764a7140f990b872bb671c577d-4.m3u8" },
-    { title: "来自“身边人”的骗局", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/07/06/152368209324814746041011005/d1c8fda81de1484fb4ba4bf4da9c2fe3-4.m3u8" },
+    { title: "来自“身边人”的骗局", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/”07/06/152368209324814746041011005/d1c8fda81de1484fb4ba4bf4da9c2fe3-4.m3u8" },
     { title: "追缉午夜窃贼", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/07/03/152259625199373926812011005/da2b93e966954a3185ce9b07d4d4c499-4.m3u8" },
     { title: "继亲赡养之争", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/07/02/152223285222289408281011005/6eb5a2a92c56413eb88a5e79b5add9b2-4.m3u8" },
     { title: "铁路线上的救助", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/07/01/152187576294191513941011005/fabd44dde3e347babdfc489559c816d6-4.m3u8" },
     { title: "无人机下的非法捕猎", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/06/30/152150620693947597241011005/7db4fc1e47b449e1bce5313b36f9e407-4.m3u8" },
     { title: "提防“兼职”陷阱", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/06/29/152114671570628608381011005/70d78f587965449e9328d108dba82e58-4.m3u8" },
-    { title: "“高价车衣”理赔骗局", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/06/25/151969321279432704312011005/d7954fa29de84f0da7364e5fc03cca9d-4.m3u8" },
+    { title: "“高价车衣理赔骗局", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/06/25/151969321279432704312011005/d7954fa29de84f0da7364e5fc03cca9d-4.m3u8" },
     { title: "智擒“飞贼”", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/06/25/151965633121802650029011005/1be0e406eceb47378fcf6a2a0115c871-4.m3u8" },
     { title: "私改电池酿火灾", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/06/24/151933291544953242012011005/9a88e695b933484d9b836af76e00d1c8-4.m3u8" },
     { title: "禁渔红线不可越", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/06/22/151860821028742758829011005/a5a68260b17d4d7eacea55129c3a1de3-4.m3u8" },
@@ -141,31 +136,45 @@ const LOCAL_VIDEOS = [
 // ================== 应用配置 ==================
 var appConfig = {
     ver: 1,
-    title: '央视新闻·今日说法',
+    title: '今日说法',
     site: SITE,
     tabs: [{ name: '今日说法', ext: { id: 'jrsf', url: 'local' } }],
 };
 
 async function getConfig() { return jsonify(appConfig); }
 
-// ================== 首页：保留 1 个封面照片 ==================
+// ================== 首页：只有 1 个电视剧卡片 ==================
 async function getCards(ext) {
+    var e = argsify(ext) || {};
+    var pg = parseInt(e.page) || 1;
+    
+    // ★ 关键：拦截翻页请求，如果请求第2页及以后，直接返回空，防止客户端无限重复显示
+    if (pg > 1) {
+        return jsonify({ list: [] });
+    }
+
     var cards = [];
     if (LOCAL_VIDEOS.length === 0) return jsonify({ list: [] });
 
     cards.push({
         vod_id: 'jrsf_all', 
-        vod_name: '今日说法（合集）', 
-        // ★ 只留这一个固定的封面图作为首页卡片图片
+        vod_name: '今日说法', 
         vod_pic: "https://img.cctvnews.cctv.com/image/1005/snapshot/155194549641657139244001005/9ec14533bc54435db9a7695f6964ab50.jpeg", 
-        vod_remarks: '共 ' + LOCAL_VIDEOS.length + ' 集',
+        vod_remarks: '全 ' + LOCAL_VIDEOS.length + ' 集',
+        vod_type: '电视剧',
+        vod_year: '2026',
+        vod_area: '内地',
+        vod_lang: '国语',
+        vod_director: 'CCTV',
+        vod_actor: '今日说法栏目组',
+        vod_content: '《今日说法》是一档以真实案件为基础的法制类节目，讲述法律故事、普及法律知识。',
         ext: { id: 'jrsf_all' }
     });
 
     return jsonify({ list: cards });
 }
 
-// ================== 详情页：纯文字选集列表 ==================
+// ================== 详情页：所有剧集都在里面 ==================
 async function getTracks(ext) {
     ext = argsify(ext) || {};
     var tracks = [];
@@ -185,7 +194,7 @@ async function getTracks(ext) {
         tracks.push({ name: '暂无剧集', pan: '', ext: { url: '' } });
     }
 
-    return jsonify({ list: [{ title: '今日说法选集', tracks: tracks }] });
+    return jsonify({ list: [{ title: '今日说法', tracks: tracks }] });
 }
 
 // ================== 播放信息 ==================
