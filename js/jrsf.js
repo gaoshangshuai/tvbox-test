@@ -5,6 +5,11 @@ const SITE = 'https://content-static.cctvnews.cctv.com';
 // ★★★ 核心数据包 ★★★
 // =====================================================================
 const LOCAL_VIDEOS = [
+
+{ title: "20261020 斩断黄金走私链", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/20/156209512837949850073011005/9ec92dafccfc4cb194c4aff54b8f4058-4.m3u8" },
+
+{ title: "20261019 识破房产骗贷套路", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/19/156173063363111322073011005/4afeef9fd38549a386da1a6960e7f497-4.m3u8" },
+
     { title: "20261016 伸向未成年人的网络黑手", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/16/156064880938330521918011005/64e1d0ab45be403bb18f09c8be4e2827-4.m3u8" },
     { title: "20261015 追责“虚假退货”", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/15/156028431877878989238011005/790a1584dc3548778f985d18215f7893-4.m3u8" },
     { title: "20261014 追踪雨夜盗鸽贼", url: "https://res.cctvnews.cctv.com/video/1005/videos/2026/10/14/155991757778356224344011005/257e6c1ebf574380a60ab36510982f62-4.m3u8" },
