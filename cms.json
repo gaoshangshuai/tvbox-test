@@ -11,6 +11,11 @@
       "filterable": 1
     },
     {
+      "name": "量子|点播",
+      "type": 1,
+      "api": "https://cj.lziapi.com/api.php/provide/vod/"
+    },
+    {
       "key": "mdzyw",
       "name": "魔都资源网",
       "type": 1,
