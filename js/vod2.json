@@ -86,11 +86,11 @@
 },
    
     {
-  "key": "jrsf",
+  "key": "xxqgys",
   "name": "央视频",
   "type": 3,
-  "api": "csp_jrsf",
-  "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/jrsf.js"
+  "api": "csp_xxqgys",
+  "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/xxqgys"
 }
   ]
 }
