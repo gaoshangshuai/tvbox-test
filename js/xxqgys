@@ -1,0 +1,222 @@
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+const SITE = 'https://www.xuexi.cn';
+
+const HEADERS = {
+    'User-Agent': UA,
+    'Referer': SITE + '/',
+    'Origin': SITE,
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'zh-CN,zh;q=0.9'
+};
+
+// ★★★ 栏目配置区 ★★★
+// 你想加什么栏目，就往下面这个大括号里复制粘贴一段。
+// 以后到了 2027 年，只需把新的 ID 追加进去即可。
+const SHOWS = [
+    {
+        name: '今日说法 (2026)', 
+        id: '639767899891022364', // 网页链接里 id= 后面的数字
+        pic: 'https://img.cctvnews.cctv.com/image/1005/snapshot/155194549641657139244001005/9ec14533bc54435db9a7695f6964ab50.jpeg' // 封面图
+    },
+    // 示例：未来你想添加 2027 年的，或者别的节目，照猫画虎即可
+    // {
+    //     name: '今日说法 (2027)',
+    //     id: '这里填新的ID',
+    //     pic: '这里填封面图链接'
+    // }
+];
+
+let appConfig = {
+    ver: 1,
+    title: '学习强国-特别节目',
+    site: SITE,
+    tabs: [
+        { name: '特别节目', ext: { id: 'special' } }
+    ]
+};
+
+async function getConfig() {
+    return jsonify(appConfig);
+}
+
+function safeArgsify(ext) {
+    if (ext == null) return {};
+    if (typeof ext === 'object') return ext;
+    try {
+        return argsify(ext);
+    } catch (e) {
+        return {};
+    }
+}
+
+// 获取卡片列表
+async function getCards(ext) {
+    ext = safeArgsify(ext);
+    let id = ext.id || 'special';
+    
+    // ★★★ 核心修复点：处理分页，防止无限重复 ★★★
+    let page = parseInt(ext.page || ext.pg || ext.pageNum || 1);
+    if (isNaN(page) || page < 1) page = 1;
+    
+    // 如果框架请求第 2 页及以后，直接返回空列表，强制停止加载
+    if (page > 1) {
+        return jsonify({ list: [] });
+    }
+
+    // 只有第 1 页才会渲染下面的卡片
+    if (id === 'special') {
+        let cards = [];
+        
+        // 遍历你配置好的 SHOWS 数组
+        SHOWS.forEach(show => {
+            cards.push({
+                vod_id: show.id,
+                vod_name: show.name,
+                vod_pic: show.pic,
+                vod_remarks: '更新中',
+                ext: { itemId: show.id }
+            });
+        });
+        
+        return jsonify({ list: cards });
+    }
+    
+    return jsonify({ list: [] });
+}
+
+// 获取剧集列表与直链
+async function getTracks(ext) {
+    ext = safeArgsify(ext);
+    let itemId = ext.itemId;
+    let tracks = [];
+    
+    if (!itemId) return jsonify({ list: [] });
+
+    let jsonStr = '';
+    const urls = [
+        `https://article.xuexi.cn/data/app/${itemId}.js?_st=${Date.now()}`,
+        `https://boot-source.xuexi.cn/data/app/${itemId}.js?_st=${Date.now()}`
+    ];
+
+    for (let url of urls) {
+        try {
+            const { data } = await $fetch.get(url, { headers: HEADERS });
+            if (data && String(data).length > 20) {
+                jsonStr = String(data);
+                break;
+            }
+        } catch (e) {}
+    }
+
+    if (!jsonStr) {
+        try {
+            const pageUrl = `${SITE}/lgpage/detail/index.html?id=${itemId}`;
+            const { data: html } = await $fetch.get(pageUrl, { headers: HEADERS });
+            const mp4Regex = /(https?:\/\/[^"'\s]+\.(?:mp4|m3u8)[^"'\s]*)/g;
+            let match;
+            let count = 1;
+            while ((match = mp4Regex.exec(html)) !== null) {
+                let cleanUrl = match[1].replace(/\\\//g, '/');
+                tracks.push({ name: `播放源 ${count++}`, pan: '', ext: { url: cleanUrl } });
+            }
+        } catch(e) {}
+    } else {
+        const start = jsonStr.indexOf('(');
+        const end = jsonStr.lastIndexOf(')');
+        if (start !== -1 && end !== -1) {
+            jsonStr = jsonStr.substring(start + 1, end);
+        }
+
+        try {
+            const detailData = argsify(jsonStr);
+            let videoList = extractVideosRecursive(detailData);
+            
+            // 倒序排列，最新一期在最上面
+            videoList.reverse();
+            
+            videoList.forEach((v, i) => {
+                tracks.push({
+                    name: v.title || `第${videoList.length - i}集`,
+                    pan: '',
+                    ext: { url: v.url }
+                });
+            });
+        } catch (e) {
+            $print('JSON解析失败: ' + e.message);
+        }
+    }
+
+    if (tracks.length === 0) {
+        tracks.push({ name: '未找到视频流', pan: '', ext: { url: '' } });
+    }
+
+    return jsonify({ list: [{ title: '默认分组', tracks: tracks }] });
+}
+
+async function getPlayinfo(ext) {
+    ext = safeArgsify(ext);
+    let url = ext.url;
+    if (!url) return jsonify({ urls: [] });
+
+    return jsonify({
+        urls: [url],
+        headers: {
+            'User-Agent': UA,
+            'Referer': SITE + '/',
+            'Origin': SITE
+        }
+    });
+}
+
+async function search(ext) {
+    return jsonify({ list: [] });
+}
+
+function extractVideosRecursive(node) {
+    let results = [];
+    if (!node || typeof node !== 'object') return results;
+
+    if (node.video_storage_info && Array.isArray(node.video_storage_info)) {
+        let bestUrl = '';
+        let bestRes = -1;
+        node.video_storage_info.forEach(src => {
+            let url = src.normal || '';
+            if (url.match(/\.(mp4|m3u8)/i)) {
+                let res = parseInt(src.resolution) || 0;
+                if (res > bestRes) {
+                    bestRes = res;
+                    bestUrl = url;
+                }
+            }
+        });
+        if (bestUrl) {
+            results.push({ title: node.title || node.name || '', url: bestUrl });
+        }
+    } 
+    else if (node.videos && Array.isArray(node.videos) && node.videos.length > 0) {
+        node.videos.forEach(v => {
+            results = results.concat(extractVideosRecursive(v));
+        });
+    }
+
+    if (node.sub_items && Array.isArray(node.sub_items)) {
+        node.sub_items.forEach(sub => {
+            let subList = extractVideosRecursive(sub);
+            if (sub.title && subList.length > 0) {
+                subList.forEach(item => {
+                    if (!item.title) item.title = sub.title;
+                });
+            }
+            results = results.concat(subList);
+        });
+    }
+
+    for (let key in node) {
+        if (key !== 'video_storage_info' && key !== 'videos' && key !== 'sub_items') {
+            let res = extractVideosRecursive(node[key]);
+            results = results.concat(res);
+        }
+    }
+
+    return results;
+}
