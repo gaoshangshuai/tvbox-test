@@ -9,14 +9,13 @@ const HEADERS = {
     'Accept-Language': 'zh-CN,zh;q=0.9'
 };
 
-// ★★★ 分类数据配置区 ★★★
-// 你可以根据 Tab 的 id 自由添加或调整栏目
+// ★★★ 静态栏目配置区 ★★★
 const TAB_DATA = {
     // 特别节目 Tab 的内容
     'special': [
         {
-            name: '今日说法 (2026)', 
-            id: '639767899891022364', 
+            name: '今日说法 (2026)',
+            id: '639767899891022364',
             pic: 'https://boot-img.xuexi.cn/image/1005/process/7cde786814b44d25a65ebfcd05768ab3.jpg'
         },
         {
@@ -50,6 +49,18 @@ const TAB_DATA = {
     ]
 };
 
+// ★★★ 动态栏目配置区 ★★★
+const DYNAMIC_LISTS = {
+    // 社会法律频道（原「法治课堂」Tab 已移除，配置保留备用）
+    'society_law': 'https://www.xuexi.cn/lgdata/1lth3moi9nl.json',
+    // 法律课堂频道
+    'law_class': 'https://www.xuexi.cn/lgdata/v3klp6fr7l.json',
+    // 社会与法频道
+    'social_law_new': 'https://www.xuexi.cn/lgdata/48cdilh72vp4.json',
+    // 法治微电影频道（原 Tab 已移除，内容合入微短剧）
+    'law_micro_film': 'https://www.xuexi.cn/lgdata/4d82ahlubmol.json'
+};
+
 var appConfig = {
     ver: 1,
     title: '学习强国-特别节目',
@@ -60,7 +71,9 @@ var appConfig = {
     },
     tabs: [
         { name: '特别节目', ext: { id: 'special' }, ui: 1 },
-        { name: '微短剧', ext: { id: 'shortplay' }, ui: 1 }
+        { name: '微短剧', ext: { id: 'shortplay' }, ui: 1 },
+        { name: '法律课堂', ext: { id: 'law_class' }, ui: 1 },
+        { name: '社会与法', ext: { id: 'social_law_new' }, ui: 1 }
     ]
 };
 
@@ -78,35 +91,120 @@ function safeArgsify(ext) {
     }
 }
 
+// 构造卡片
+function makeCard(id, name, pic, remarks) {
+    return {
+        vod_id: id,
+        vod_name: name,
+        vod_pic: pic || '',
+        vod_remarks: remarks || '',
+        style: { type: "rect", ratio: 1.777 },
+        ext: { itemId: id }
+    };
+}
+
+// 取“剧名”分组键：去掉括号内容、书名号，取空格/冒号/顿号等之前的部分
+function getDramaGroupKey(title) {
+    if (!title) return '其他';
+    let t = String(title)
+        .replace(/[（(【\[][^）)】\]]*[）)】\]]/g, '')
+        .replace(/[《》<>]/g, '')
+        .trim();
+    let m = t.match(/^(.+?)[\s:：·•—\-、,，|/]/);
+    let key = m ? m[1].trim() : t;
+    return key || '其他';
+}
+
+// 按剧名稳定分组：组顺序按首次出现，组内保持原顺序
+function groupSpecialCards(cards) {
+    const groups = new Map();
+    const order = [];
+    cards.forEach(c => {
+        const key = getDramaGroupKey(c.vod_name);
+        if (!groups.has(key)) {
+            groups.set(key, []);
+            order.push(key);
+        }
+        groups.get(key).push(c);
+    });
+    const sorted = [];
+    order.forEach(k => sorted.push.apply(sorted, groups.get(k)));
+    return sorted;
+}
+
 // 获取卡片列表
 async function getCards(ext) {
     ext = safeArgsify(ext);
     let tabId = ext.id || 'special';
-    
-    // 处理分页，防止无限重复
+
     let page = parseInt(ext.page || ext.pg || ext.pageNum || 1);
     if (isNaN(page) || page < 1) page = 1;
-    
-    // 如果框架请求第 2 页及以后，直接返回空列表
+
     if (page > 1) {
         return jsonify({ list: [] });
     }
 
     let cards = [];
-    // 根据当前 Tab 获取对应的栏目列表
+    const addedIds = new Set();
+
+    // 1) 先放静态卡片
     const shows = TAB_DATA[tabId] || [];
-    
     shows.forEach(show => {
-        cards.push({
-            vod_id: show.id,
-            vod_name: show.name,
-            vod_pic: show.pic,
-            vod_remarks: '更新中',
-            style: { type: "rect", ratio: 1.777 }, // 强制横版 16:9
-            ext: { itemId: show.id }
-        });
+        addedIds.add(String(show.id));
+        cards.push(makeCard(show.id, show.name, show.pic, '更新中'));
     });
-    
+
+    // 2) 再放动态卡片
+    //    微短剧 Tab 额外加载「法治微电影」数据源
+    let dynamicIds = [];
+    if (DYNAMIC_LISTS[tabId]) dynamicIds.push(tabId);
+    if (tabId === 'shortplay' && DYNAMIC_LISTS['law_micro_film']) dynamicIds.push('law_micro_film');
+
+    for (let dId of dynamicIds) {
+        try {
+            const { data } = await $fetch.get(DYNAMIC_LISTS[dId], { headers: HEADERS });
+            let listData = typeof data === 'string' ? JSON.parse(data) : data;
+            if (!Array.isArray(listData)) listData = [];
+
+            listData.forEach(item => {
+                if (item.itemId && item.title && !addedIds.has(String(item.itemId))) {
+                    addedIds.add(String(item.itemId));
+                    const remark = item.showSource || (dId === 'law_micro_film' ? '法治微电影' : '法律课堂');
+                    cards.push(makeCard(item.itemId, item.title, item.thumbImage || '', remark));
+                }
+            });
+        } catch (e) {
+            $print('获取动态列表失败(' + dId + '): ' + e.message);
+        }
+    }
+
+    // 3) 特别节目 Tab：追加「社会与法」中属于中央广播电视总台的节目
+    if (tabId === 'special' && DYNAMIC_LISTS['social_law_new']) {
+        try {
+            const { data } = await $fetch.get(DYNAMIC_LISTS['social_law_new'], { headers: HEADERS });
+            let listData = typeof data === 'string' ? JSON.parse(data) : data;
+            if (!Array.isArray(listData)) listData = [];
+
+            listData.forEach(item => {
+                const source = String(item.showSource || '');
+                if (
+                    item.itemId &&
+                    item.title &&
+                    source.indexOf('中央广播电视总台') !== -1 &&
+                    !addedIds.has(String(item.itemId))
+                ) {
+                    addedIds.add(String(item.itemId));
+                    cards.push(makeCard(item.itemId, item.title, item.thumbImage || '', item.showSource || '中央广播电视总台'));
+                }
+            });
+        } catch (e) {
+            $print('获取中央广播电视总台节目失败: ' + e.message);
+        }
+
+        // ★ 特别节目按剧名分组，同剧名放一起
+        cards = groupSpecialCards(cards);
+    }
+
     return jsonify({ list: cards });
 }
 
@@ -115,7 +213,7 @@ async function getTracks(ext) {
     ext = safeArgsify(ext);
     let itemId = ext.itemId;
     let tracks = [];
-    
+
     if (!itemId) return jsonify({ list: [] });
 
     let jsonStr = '';
@@ -134,7 +232,6 @@ async function getTracks(ext) {
         } catch (e) {}
     }
 
-    // 如果接口获取失败，尝试直接从 HTML 源码提取（兜底）
     if (!jsonStr) {
         try {
             const pageUrl = `${SITE}/lgpage/detail/index.html?id=${itemId}`;
@@ -148,7 +245,6 @@ async function getTracks(ext) {
             }
         } catch(e) {}
     } else {
-        // 解析 JSONP 并提取数据
         const start = jsonStr.indexOf('(');
         const end = jsonStr.lastIndexOf(')');
         if (start !== -1 && end !== -1) {
@@ -158,13 +254,14 @@ async function getTracks(ext) {
         try {
             const detailData = argsify(jsonStr);
             let videoList = extractVideosRecursive(detailData);
-            
-            // 倒序排列，最新一期在最上面
+
+            // ★ 颠倒剧集顺序：接口通常“最新在前”，reverse 后变为“最老在前”
             videoList.reverse();
-            
+
             videoList.forEach((v, i) => {
                 tracks.push({
-                    name: v.title || `第${videoList.length - i}集`,
+                    // 颠倒后按正序编号，第1集排在最前
+                    name: v.title || `第${i + 1}集`,
                     pan: '',
                     ext: { url: v.url }
                 });
@@ -221,7 +318,7 @@ function extractVideosRecursive(node) {
         if (bestUrl) {
             results.push({ title: node.title || node.name || '', url: bestUrl });
         }
-    } 
+    }
     else if (node.videos && Array.isArray(node.videos) && node.videos.length > 0) {
         node.videos.forEach(v => {
             results = results.concat(extractVideosRecursive(v));
