@@ -255,12 +255,10 @@ async function getTracks(ext) {
             const detailData = argsify(jsonStr);
             let videoList = extractVideosRecursive(detailData);
 
-            // ★ 颠倒剧集顺序：接口通常“最新在前”，reverse 后变为“最老在前”
-            videoList.reverse();
-
+            // ★ 不再颠倒，按接口返回顺序输出（通常第1集在前）
             videoList.forEach((v, i) => {
                 tracks.push({
-                    // 颠倒后按正序编号，第1集排在最前
+                    // 有标题用标题，否则按正序编号“第1集、第2集……”
                     name: v.title || `第${i + 1}集`,
                     pan: '',
                     ext: { url: v.url }
