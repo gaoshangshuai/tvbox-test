@@ -16,8 +16,9 @@ const appConfig = {
     title: '萌想虎',
     site: SITE,
     tabs: [
-        { name: '看了还看', ext: { id: '1864237075788472322' } },
-        { name: '首页A', ext: { id: '1861597294625574913' } }
+        // 🌟 在这里加上了 ui: 1，强制前端渲染为横版卡片
+        { name: '看了还看', ext: { id: '1864237075788472322' }, ui: 1 },
+        { name: '首页A', ext: { id: '1861597294625574913' }, ui: 1 }
     ]
 };
 
@@ -48,7 +49,8 @@ async function getCards(ext) {
             if (cv.imageJson) {
                 try {
                     let imgObj = JSON.parse(cv.imageJson);
-                    pic = getImageUrl(imgObj.mainImage || imgObj.leftImage || '');
+                    // 优先取横图
+                    pic = getImageUrl(imgObj.mainImage || imgObj.leftImage || imgObj.horizontalPicture || '');
                 } catch (e) {}
             }
 
@@ -64,7 +66,7 @@ async function getCards(ext) {
     } catch (e) { return jsonify({ list: [] }); }
 }
 
-// 🌟 终极提取：直接解析数组，获取每一集的名字和数字ID
+// 终极提取：直接解析数组，获取每一集的名字和数字ID
 async function getTracks(ext) {
     ext = argsify(ext);
     const courseId = ext.id;
@@ -75,15 +77,12 @@ async function getTracks(ext) {
         const { data } = await $fetch.get(url, { headers: HEADERS });
         let json = typeof data === 'string' ? argsify(data) : data;
 
-        // 判断返回的 data 是不是一个数组（正是你抓包里的结构）
         if (json && json.success && Array.isArray(json.data)) {
             json.data.forEach((item, index) => {
-                // 过滤掉没有名字或者 ID 无效（如 -401）的数据
                 if (!item.videoName) return;
                 
                 tracks.push({
                     name: item.videoName,
-                    // 把课程ID 和 视频数字ID 都存进去，下一步要用
                     ext: { courseId: courseId, videoId: item.id } 
                 });
             });
@@ -99,7 +98,7 @@ async function getTracks(ext) {
     return jsonify({ list: [{ title: '剧集列表', tracks: tracks }] });
 }
 
-// 🌟 终极播放：用数字ID换取哈希值，再获取真实播放链接
+// 终极播放：用数字ID换取哈希值，再获取真实播放链接
 async function getPlayinfo(ext) {
     ext = argsify(ext);
     let realHashId = ext.videoId;
@@ -107,12 +106,10 @@ async function getPlayinfo(ext) {
     // 如果这个 ID 是纯数字，说明它是刚才拿到的数字 ID（如 4214），我们需要去换取哈希
     if (/^\d+$/.test(ext.videoId) && ext.courseId) {
         try {
-            // 这就是你截图里的 #135 接口
             const infoUrl = `${SITE}/cms-server/app/video/info/${ext.courseId}/${ext.videoId}`;
             const { data } = await $fetch.get(infoUrl, { headers: HEADERS });
             let infoJson = typeof data === 'string' ? argsify(data) : data;
             
-            // 从返回的 mgtEntity 里提取哈希值
             if (infoJson && infoJson.success && infoJson.data && infoJson.data.mgtEntity) {
                 let playback = infoJson.data.mgtEntity.playbackAddress;
                 if (playback) {
@@ -125,7 +122,6 @@ async function getPlayinfo(ext) {
         }
     }
 
-    // 拿着提取出的哈希值（或者如果是没走过上面流程的兜底），去请求最终播放地址
     const url = `${SITE}/cms-server/app/video/getPlayInfo`;
     const postData = JSON.stringify({ videoId: realHashId });
 
