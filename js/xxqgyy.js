@@ -3,20 +3,19 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 const SITE = 'https://www.xuexi.cn';
 const DEFAULT_PIC = 'https://boot-img.xuexi.cn/image/1005/process/93ef3edd804a4a26b7f8f899e8bf258c.jpg';
 
-// 1. 普通频道列表
+// ==================== 1. 动态频道列表 ====================
 const CHANNEL_LIST = {
-    movie: 'https://www.xuexi.cn/lgdata/18rkaul9h7l.json',          // 电影
-    movie_tv: 'https://www.xuexi.cn/lgdata/109tvcosfnl.json',        // 电视剧
-    movie_doc: 'https://www.xuexi.cn/lgdata/17fsu5j4hnl.json'        // 纪录片
+    movie: 'https://www.xuexi.cn/lgdata/18rkaul9h7l.json',
+    movie_tv: 'https://www.xuexi.cn/lgdata/109tvcosfnl.json',
+    movie_doc: 'https://www.xuexi.cn/lgdata/17fsu5j4hnl.json'
 };
 
-// 2. 动画频道
+// ==================== 2. 动画列表 ====================
 const ANIMATION_LIST = [
     { name: '长征先锋', pic: 'https://boot-img.xuexi.cn/image/1005/process/521e22e4b1154a2d9551f6d9fbb4376d.jpg', desc: '全52集', artIds: ['7521238365152978329'] },
     { name: '犟驴小红军', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/5646dcb04b6041abaff2359f45a2c96b_crop_1581052257107_h_422_w_750_1581052257185_h_422_w_750.jpg', desc: '全12集', artIds: ['1439398455075646484'] },
     { name: '寻找英雄 小淘气长征记', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/9652b016cd394ae49590bac4010090e5_crop_new_h_422_w_750_h_422_w_750.jpg', desc: '全26集', artIds: ['783402746357409941'] },
     { name: '那年那兔那些事儿', pic: 'https://boot-img.xuexi.cn/image/1006/process/9a020fdb20104931ad51743d44519c51.jpg', desc: '全3季', artIds: ['32561504674169041'] },
-    // 👇 新增的《四渡赤水》
     { name: '四渡赤水', pic: 'https://boot-img.xuexi.cn/image/1005/process/76fb7792312d42be936e04e65fca3325.jpg', desc: '全8集', artIds: ['8374057897549941762'] }
 ];
 
@@ -27,15 +26,16 @@ const HEADERS = {
     'Accept': 'application/json, text/plain, */*'
 };
 
+// 🌟 关键修复1：在 tabs 中加上 ui: 1，强制前端渲染为横版卡片
 let appConfig = {
     ver: 4,
     title: '学习强国',
     site: SITE,
     tabs: [
-        { name: '电影', ext: { id: 'movie' } },
-        { name: '电视剧', ext: { id: 'movie_tv' } },
-        { name: '纪录片', ext: { id: 'movie_doc' } },
-        { name: '动画', ext: { id: 'ani' } }
+        { name: '电影', ext: { id: 'movie' }, ui: 1 },
+        { name: '电视剧', ext: { id: 'movie_tv' }, ui: 1 },
+        { name: '纪录片', ext: { id: 'movie_doc' }, ui: 1 },
+        { name: '动画', ext: { id: 'ani' }, ui: 1 }
     ]
 };
 
@@ -47,7 +47,30 @@ function safeArgsify(ext) {
     try { return argsify(ext); } catch (e) { return {}; }
 }
 
-// ==================== 1. 获取卡片列表 ====================
+// ==================== 3. 横版海报处理（阿里云 OSS）====================
+function makeLandscape(url) {
+    if (!url) return url;
+    // 已经有 OSS 参数的直接放行
+    if (url.indexOf('x-oss-process') !== -1) return url;
+    if (url.indexOf('images.weserv.nl') !== -1) return url;
+    
+    // 已经是横版的 URL 直接放行
+    const m = url.match(/_h_(\d+)_w_(\d+)/);
+    if (m && parseInt(m[2], 10) > parseInt(m[1], 10)) return url;
+    
+    // 🌟 关键修复2：学习强国用阿里云OSS，参数替换为 m_fill（裁剪填充）
+    if (url.indexOf('boot-img.xuexi.cn') !== -1) {
+        const sep = url.indexOf('?') === -1 ? '?' : '&';
+        // 强行裁剪为 750x422 的横版并填充
+        return url + sep + 'x-oss-process=image/resize,m_fill,w_750,h_422';
+    }
+    
+    // 第三方图片兜底：利用 weserv 强制裁剪为横版
+    const clean = url.replace(/^https?:\/\//, '');
+    return 'https://images.weserv.nl/?url=' + encodeURIComponent(clean) + '&w=750&h=422&fit=cover&output=jpg';
+}
+
+// ==================== 4. 动态获取卡片 ====================
 async function getCards(ext) {
     ext = safeArgsify(ext);
     let page = ext.page || 1;
@@ -61,7 +84,7 @@ async function getCards(ext) {
             cards.push({
                 vod_id: drama.artIds.join(','),
                 vod_name: drama.name,
-                vod_pic: drama.pic,
+                vod_pic: makeLandscape(drama.pic),
                 vod_remarks: drama.desc,
                 ext: { type: 'tv_detail', artIds: drama.artIds }
             });
@@ -74,10 +97,22 @@ async function getCards(ext) {
 
     try {
         const { data } = await $fetch.get(listUrl, { headers: HEADERS });
-        const list = typeof data === 'string' ? argsify(data) : data;
+        let list = typeof data === 'string' ? argsify(data) : data;
         const addedIds = new Set();
 
         if (Array.isArray(list)) {
+            list.sort((a, b) => {
+                let getTime = (item) => {
+                    let t = item.publishTime || item.showTime || item.publish_time || item.create_time || item.time || 0;
+                    if (typeof t === 'string') {
+                        let parsed = Date.parse(t.replace(/-/g, '/'));
+                        if (!isNaN(parsed)) return parsed;
+                    }
+                    return parseInt(t, 10) || 0;
+                };
+                return getTime(b) - getTime(a);
+            });
+
             list.forEach(item => {
                 let cover = item.thumbImage || item.image || item.pic || item.cover || item.imageUrl || '';
                 if (cover && cover.indexOf('http') !== 0) {
@@ -96,8 +131,8 @@ async function getCards(ext) {
                 cards.push({
                     vod_id: itemId,
                     vod_name: item.title || '',
-                    vod_pic: cover || DEFAULT_PIC,
-                    vod_remarks: item.showSource || item.publishTime || '',
+                    vod_pic: makeLandscape(cover || DEFAULT_PIC),
+                    vod_remarks: item.showSource || item.publishTime || item.publish_date || '',
                     ext: { type: 'tv_detail', artIds: [itemId] }
                 });
             });
@@ -109,10 +144,9 @@ async function getCards(ext) {
     return jsonify({ list: cards });
 }
 
-// ==================== 2. 解析底层视频数据 ====================
+// ==================== 5. 解析底层数据 ====================
 async function fetchSingleId(id) {
     try {
-        // 优先尝试普通合集接口
         const apiUrl = `https://boot-source.xuexi.cn/data/app/${id}.js`;
         const { data } = await $fetch.get(apiUrl, { headers: HEADERS });
         let text = String(data);
@@ -123,17 +157,13 @@ async function fetchSingleId(id) {
         
         let detail = argsify(jsonStr);
 
-        // 如果普通接口拿到了数据，直接返回
-        if (detail && detail.sub_items && detail.sub_items.length > 0) {
-            return detail.sub_items;
-        }
+        if (detail && detail.sub_items && detail.sub_items.length > 0) return detail.sub_items;
         if (detail && detail.videos && detail.videos.length > 0) {
             return [{ title: detail.title || '正片', videos: detail.videos }];
         }
     } catch (e) {}
 
     try {
-        // 如果普通接口失败，尝试专题接口（多季）
         const specialUrl = `https://article.xuexi.cn/data/special/pc/${id}.js`;
         const { data: sData } = await $fetch.get(specialUrl, { headers: HEADERS });
         let sText = String(sData);
@@ -144,7 +174,6 @@ async function fetchSingleId(id) {
         
         let sDetail = argsify(sJsonStr);
 
-        // 如果是专题，提取多季数据
         if (sDetail && sDetail.slots && sDetail.slots.length > 0) {
             let allEpisodes = [];
             sDetail.slots.forEach(slot => {
@@ -165,7 +194,6 @@ async function fetchSingleId(id) {
     return [];
 }
 
-// 请求单集真实MP4/M3U8
 async function fetchSingleEpisode(artId) {
     try {
         const apiUrl = `https://article.xuexi.cn/data/app/${artId}.js`;
@@ -179,15 +207,13 @@ async function fetchSingleEpisode(artId) {
         let detail = argsify(jsonStr);
         if (detail && detail.videos && detail.videos.length > 0) {
             let info = detail.videos[0].video_storage_info || [];
-            if (info.length > 0) {
-                return info[0].normal || info[0].url || '';
-            }
+            if (info.length > 0) return info[0].normal || info[0].url || '';
         }
     } catch (e) {}
     return '';
 }
 
-// ==================== 3. 获取剧集 ====================
+// ==================== 6. 获取剧集 ====================
 async function getTracks(ext) {
     ext = safeArgsify(ext);
     let tracks = [];
@@ -203,7 +229,6 @@ async function getTracks(ext) {
             let epName = item.title || `第${i + 1}集`;
             let bestUrl = '';
 
-            // 判断是普通视频结构还是专题提取出来的单集ID
             if (item.videos && item.videos[0]) {
                 let info = item.videos[0].video_storage_info || [];
                 if (info.length > 0) bestUrl = info[0].normal || info[0].url || '';
@@ -225,7 +250,7 @@ async function getTracks(ext) {
     return jsonify({ list: [] });
 }
 
-// ==================== 4. 播放 ====================
+// ==================== 7. 播放 ====================
 async function getPlayinfo(ext) {
     ext = safeArgsify(ext);
     let url = ext.url;
@@ -237,4 +262,70 @@ async function getPlayinfo(ext) {
     });
 }
 
-async function search(ext) { return jsonify({ list: [] }); }
+// ==================== 8. 搜索 ====================
+async function search(ext) {
+    ext = safeArgsify(ext);
+    const keyword = ext.text || ext.wd || '';
+    const page = ext.page || 1;
+    if (!keyword) return jsonify({ list: [], page });
+
+    const endpoints = [
+        `https://so.xuexi.cn/search/api/search.json?keyword=${encodeURIComponent(keyword)}&page=${page}&size=20&sort=default&type=all`,
+        `https://so.xuexi.cn/search/api/search.json?keyword=${encodeURIComponent(keyword)}&page=${page}&size=20`,
+        `https://www.xuexi.cn/search/api/search.json?keyword=${encodeURIComponent(keyword)}&page=${page}&size=20`
+    ];
+
+    const cards = [];
+    const added = new Set();
+
+    for (let i = 0; i < endpoints.length; i++) {
+        try {
+            const { data } = await $fetch.get(endpoints[i], { headers: HEADERS });
+            let res = typeof data === 'string' ? argsify(data) : data;
+            if (!res) continue;
+
+            let items = null;
+            if (res.data && Array.isArray(res.data.list)) items = res.data.list;
+            else if (res.data && Array.isArray(res.data.items)) items = res.data.items;
+            else if (res.data && Array.isArray(res.data.records)) items = res.data.records;
+            else if (Array.isArray(res.list)) items = res.list;
+            else if (Array.isArray(res.items)) items = res.items;
+            else if (Array.isArray(res.data)) items = res.data;
+
+            if (items && items.length > 0) {
+                items.forEach(item => {
+                    let itemId = item.itemId || item.id || item.article_id || item.articleId || item.docId || '';
+                    if (!itemId && item.url) {
+                        const match = String(item.url).match(/\/detail\/(\d+)/);
+                        if (match) itemId = match[1];
+                    }
+                    if (!itemId || added.has(itemId)) return;
+                    added.add(itemId);
+
+                    let cover = item.thumbImage || item.image || item.pic || item.cover
+                        || item.imageUrl || item.thumbnail || item.thumb || '';
+                    if (cover && cover.indexOf('http') !== 0) {
+                        cover = cover.indexOf('//') === 0
+                            ? 'https:' + cover
+                            : SITE + (cover.charAt(0) === '/' ? '' : '/') + cover;
+                    }
+
+                    cards.push({
+                        vod_id: itemId,
+                        vod_name: item.title || item.name || '',
+                        vod_pic: makeLandscape(cover || DEFAULT_PIC),
+                        vod_remarks: item.showSource || item.publishTime
+                            || item.publish_date || item.source || '',
+                        ext: { type: 'tv_detail', artIds: [itemId] }
+                    });
+                });
+
+                if (cards.length > 0) break;
+            }
+        } catch (e) {
+            console.log('search endpoint failed: ' + e.message);
+        }
+    }
+
+    return jsonify({ list: cards, page });
+}
