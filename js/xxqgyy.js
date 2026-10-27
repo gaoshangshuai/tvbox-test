@@ -14,6 +14,14 @@ const CHANNEL_LIST = {
 const ANIMATION_LIST = [
     { name: '西游记', pic: 'https://boot-img.xuexi.cn/image/1005/process/21d3eebc28164884b6e6b711415ee3a8.jpg', desc: '全52集', artIds: ['6125097417779881106'] },
     { name: '哪吒传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/395e971624d243619c0cf444418ef5b9.jpg', desc: '全52集', artIds: ['10428547373355348143'] },
+    { name: '大禹治水', pic: 'https://boot-img.xuexi.cn/image/1005/process/dc3f12c663a1437fbf18669d8c312d37.png', desc: '全12集', artIds: ['2222089652804542292'] },
+{ name: '中华治水故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/01a06756a5bc4818b8f47e31b2903df9.jpg', desc: '全26集', artIds: ['17740314066450394774'] },
+{ name: '少年师爷之公祭大禹', pic: 'https://boot-img.xuexi.cn/image/1005/process/3e31244533b14847b6f64ccec0585a25.jpg', desc: '全26集', artIds: ['5828744918912178544'] },
+{ name: '丝路传奇特使张骞', pic: 'https://image.baidu.com/search/detail?adpicid=0&b_applid=8105294043562818602&bdtype=15&commodity=&copyright=&cs=926183551%2C3555773725&di=1&fr=click-pic&fromurl=http%253A%252F%252Fm.ac.qq.com%252Fchapter%252Findex%252Fid%252F637067%252Fcid%252F2&gsm=1e&hd=&height=0&hot=&ic=&ie=utf-8&imgformat=&imgratio=4&imgspn=0&is=0%2C0&isImgSet=&latest=&lid=&lm=&objurl=https%253A%252F%252Fmanhua.acimg.cn%252Fhorizontal%252F0%252F11_13_33_ec4a15c290bf5d31aaca3ef2b7366b7a_1539235989298.jpg%252F0&os=3770696744%2C1248202003&pd=image_content&pi=0&pn=28&rn=1&simid=926183551%2C3555773725&tn=baiduimagedetail&width=0&word=%E4%B8%9D%E8%B7%AF%E4%BC%A0%E5%A5%87%E7%89%B9%E4%BD%BF%E5%BC%A0%E9%AA%9E&z=', desc: '全52集', artIds: ['4223661874274269490'] },
+{ name: '林海雪原, pic: 'https://boot-img.xuexi.cn/image/1005/process/98bedf46ee8746dbaadd86b3e73bb7a7.jpg', desc: '全50集', artIds: ['11655163781253226496'] },
+{ name: '少年岳飞, pic: 'https://boot-img.xuexi.cn/crawler/imageServer/97e323ca74b84306ad29984e53ebb09b_crop_new_h_422_w_750_h_422_w_750.jpg
+', desc: '全50集', artIds: ['2462806302483100325'] },
+
     { name: '长征先锋', pic: 'https://boot-img.xuexi.cn/image/1005/process/521e22e4b1154a2d9551f6d9fbb4376d.jpg', desc: '全52集', artIds: ['7521238365152978329'] },
     { name: '犟驴小红军', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/5646dcb04b6041abaff2359f45a2c96b_crop_1581052257107_h_422_w_750_1581052257185_h_422_w_750.jpg', desc: '全12集', artIds: ['1439398455075646484'] },
     { name: '寻找英雄 小淘气长征记', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/9652b016cd394ae49590bac4010090e5_crop_new_h_422_w_750_h_422_w_750.jpg', desc: '全26集', artIds: ['783402746357409941'] },
