@@ -18,7 +18,7 @@ const ANIMATION_LIST = [
     { name: '中华治水故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/01a06756a5bc4818b8f47e31b2903df9.jpg', desc: '全26集', artIds: ['17740314066450394774'] },
     { name: '少年师爷之公祭大禹', pic: 'https://boot-img.xuexi.cn/image/1005/process/3e31244533b14847b6f64ccec0585a25.jpg', desc: '全26集', artIds: ['5828744918912178544'] },
     // 🌟 修复了百度图片链接（已换成默认图，如果你有正常图片可以替换）
-    { name: '丝路传奇特使张骞', pic: 'https://boot-img.xuexi.cn/image/1005/process/93ef3edd804a4a26b7f8f899e8bf258c.jpg', desc: '全52集', artIds: ['4223661874274269490'] },
+    { name: '丝路传奇特使张骞', pic: 'https://p1.img.cntv.cn/photoAlbum/vms/standard/img/2018/10/9/VSET6tqbHAr5XFdc5dVs7HhQ181009.jpg', desc: '全52集', artIds: ['4223661874274269490'] },
     // 🌟 修复了缺少单引号的语法错误
     { name: '林海雪原', pic: 'https://boot-img.xuexi.cn/image/1005/process/98bedf46ee8746dbaadd86b3e73bb7a7.jpg', desc: '全50集', artIds: ['11655163781253226496'] },
     // 🌟 修复了缺少单引号的语法错误
