@@ -12,6 +12,8 @@ const CHANNEL_LIST = {
 
 // ==================== 2. 动画列表 ====================
 const ANIMATION_LIST = [
+    { name: '西游记', pic: 'https://boot-img.xuexi.cn/image/1005/process/21d3eebc28164884b6e6b711415ee3a8.jpg', desc: '全52集', artIds: ['6125097417779881106'] },
+    { name: '哪吒传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/395e971624d243619c0cf444418ef5b9.jpg', desc: '全52集', artIds: ['10428547373355348143'] },
     { name: '长征先锋', pic: 'https://boot-img.xuexi.cn/image/1005/process/521e22e4b1154a2d9551f6d9fbb4376d.jpg', desc: '全52集', artIds: ['7521238365152978329'] },
     { name: '犟驴小红军', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/5646dcb04b6041abaff2359f45a2c96b_crop_1581052257107_h_422_w_750_1581052257185_h_422_w_750.jpg', desc: '全12集', artIds: ['1439398455075646484'] },
     { name: '寻找英雄 小淘气长征记', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/9652b016cd394ae49590bac4010090e5_crop_new_h_422_w_750_h_422_w_750.jpg', desc: '全26集', artIds: ['783402746357409941'] },
