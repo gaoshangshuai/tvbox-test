@@ -2,7 +2,6 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/6
 const SITE = 'https://app.mxhedu.com';
 const DEFAULT_PIC = 'https://img0.baidu.com/it/u=3056194363,3088267480&fm=253&fmt=auto&app=138&f=JPEG';
 // 🌟 https://app.mxhedu.com/cms-server/app/video/resourceInfo/1861984165058924546
-
 const TOKEN = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIyMDQ4NjMzMDE2MjA4NDEyNjc0QDE4NjE3MDY3MjQ0NjE1MzExMzdAMTg2MTM2Mzg5NDE0MDU1NTI2NSIsImlhdCI6MTc5MzEzODg0OSwiZXhwIjoxNzk1NzMwODQ5fQ.16MQFCQRm9yv_H3MZSALZSOWlkE518nivqOGve-6pF3Zxr5eW3GvYaw7liIHTPs4WYN-9Q7eLh5tiQnUm27R7Q';
 const HEADERS = {
     'User-Agent': UA,
