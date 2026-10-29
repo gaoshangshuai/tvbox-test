@@ -10,31 +10,50 @@ const CHANNEL_LIST = {
     movie_doc: 'https://www.xuexi.cn/lgdata/17fsu5j4hnl.json'
 };
 
-// ==================== 2. 动画列表 ====================
+// ==================== 2. 动画列表（按历史时期分类） ====================
 const ANIMATION_LIST = [
-    { name: '西游记', pic: 'https://boot-img.xuexi.cn/image/1005/process/21d3eebc28164884b6e6b711415ee3a8.jpg', desc: '全52集', artIds: ['6125097417779881106'] },
-    { name: '哪吒传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/395e971624d243619c0cf444418ef5b9.jpg', desc: '全52集', artIds: ['10428547373355348143'] },
-    { name: '山海传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/d15683e37efa4d11ab877e9055a098ea.jpg', desc: '全13集', artIds: ['1860699912324656805'] },
-    { name: '神话故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/a358ddf4ea2e469eb2c9a465ec87de21.jpg', desc: '全24集', artIds: ['6142922305421370437'] },
-    { name: '孔子', pic: 'https://boot-img.xuexi.cn/image/1005/process/f063b05bd36943eb8f55a1c44168b917.jpg', desc: '全104集', artIds: ['8937425226398520134'] },
-    { name: '少年师爷', pic: 'https://boot-img.xuexi.cn/image/1005/process/7de0a98b01d641f99324823f2cd9912c.jpgg', desc: '全26集', artIds: ['2056682991035843311'] },
-   
-    { name: '大禹治水', pic: 'https://boot-img.xuexi.cn/image/1005/process/dc3f12c663a1437fbf18669d8c312d37.png', desc: '全12集', artIds: ['2222089652804542292'] },
-    { name: '中华治水故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/01a06756a5bc4818b8f47e31b2903df9.jpg', desc: '全26集', artIds: ['17740314066450394774'] },
-    { name: '少年师爷之公祭大禹', pic: 'https://boot-img.xuexi.cn/image/1005/process/3e31244533b14847b6f64ccec0585a25.jpg', desc: '全26集', artIds: ['5828744918912178544'] },
-    // 🌟 修复了百度图片链接（已换成默认图，如果你有正常图片可以替换）
-    { name: '丝路传奇特使张骞', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/7ec29b537147417f9b7c57d284d55c9c_crop_1581671578923_h_422_w_750_1581671578946_h_422_w_750.jpg', desc: '全52集', artIds: ['4223661874274269490'] },
-    // 🌟 修复了缺少单引号的语法错误
-    { name: '林海雪原', pic: 'https://boot-img.xuexi.cn/image/1005/process/98bedf46ee8746dbaadd86b3e73bb7a7.jpg', desc: '全50集', artIds: ['11655163781253226496'] },
-    // 🌟 修复了缺少单引号的语法错误
-    { name: '少年岳飞', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/97e323ca74b84306ad29984e53ebb09b_crop_new_h_422_w_750_h_422_w_750.jpg', desc: '全1集', artIds: ['2462806302483100325'] },
+    // ----- 远古 -----
+    { name: '山海传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/d15683e37efa4d11ab877e9055a098ea.jpg', desc: '全13集', period: '远古', artIds: ['1860699912324656805'] },
+    { name: '神话故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/a358ddf4ea2e469eb2c9a465ec87de21.jpg', desc: '全24集', period: '远古', artIds: ['6142922305421370437'] },
 
-    { name: '长征先锋', pic: 'https://boot-img.xuexi.cn/image/1005/process/521e22e4b1154a2d9551f6d9fbb4376d.jpg', desc: '全52集', artIds: ['7521238365152978329'] },
-    { name: '犟驴小红军', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/5646dcb04b6041abaff2359f45a2c96b_crop_1581052257107_h_422_w_750_1581052257185_h_422_w_750.jpg', desc: '全12集', artIds: ['1439398455075646484'] },
-    { name: '寻找英雄 小淘气长征记', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/9652b016cd394ae49590bac4010090e5_crop_new_h_422_w_750_h_422_w_750.jpg', desc: '全26集', artIds: ['783402746357409941'] },
-    { name: '那年那兔那些事儿', pic: 'https://boot-img.xuexi.cn/image/1006/process/9a020fdb20104931ad51743d44519c51.jpg', desc: '全3季', artIds: ['32561504674169041'] },
-    { name: '四渡赤水', pic: 'https://boot-img.xuexi.cn/image/1005/process/76fb7792312d42be936e04e65fca3325.jpg', desc: '全8集', artIds: ['8374057897549941762'] }
+    // ----- 夏商周 -----
+    { name: '哪吒传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/395e971624d243619c0cf444418ef5b9.jpg', desc: '全52集', period: '夏商周', artIds: ['10428547373355348143'] },
+    { name: '大禹治水', pic: 'https://boot-img.xuexi.cn/image/1005/process/dc3f12c663a1437fbf18669d8c312d37.png', desc: '全12集', period: '夏商周', artIds: ['2222089652804542292'] },
+    { name: '中华治水故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/01a06756a5bc4818b8f47e31b2903df9.jpg', desc: '全26集', period: '夏商周', artIds: ['17740314066450394774'] },
+    { name: '少年师爷之公祭大禹', pic: 'https://boot-img.xuexi.cn/image/1005/process/3e31244533b14847b6f64ccec0585a25.jpg', desc: '全26集', period: '夏商周', artIds: ['5828744918912178544'] },
+    { name: '孔子', pic: 'https://boot-img.xuexi.cn/image/1005/process/f063b05bd36943eb8f55a1c44168b917.jpg', desc: '全104集', period: '夏商周', artIds: ['8937425226398520134'] },
+
+    // ----- 秦汉三国 -----
+    { name: '丝路传奇特使张骞', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/7ec29b537147417f9b7c57d284d55c9c_crop_1581671578923_h_422_w_750_1581671578946_h_422_w_750.jpg', desc: '全52集', period: '秦汉三国', artIds: ['4223661874274269490'] },
+
+    // ----- 晋南北朝（暂无，可后续补充） -----
+
+    // ----- 隋唐宋 -----
+    { name: '少年岳飞', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/97e323ca74b84306ad29984e53ebb09b_crop_new_h_422_w_750_h_422_w_750.jpg', desc: '全1集', period: '隋唐宋', artIds: ['2462806302483100325'] },
+
+    // ----- 元明清 -----
+    { name: '西游记', pic: 'https://boot-img.xuexi.cn/image/1005/process/21d3eebc28164884b6e6b711415ee3a8.jpg', desc: '全52集', period: '元明清', artIds: ['6125097417779881106'] },
+    { name: '少年师爷', pic: 'https://boot-img.xuexi.cn/image/1005/process/7de0a98b01d641f99324823f2cd9912c.jpg', desc: '全26集', period: '元明清', artIds: ['2056682991035843311'] },
+
+    // ----- 现代 -----
+    { name: '林海雪原', pic: 'https://boot-img.xuexi.cn/image/1005/process/98bedf46ee8746dbaadd86b3e73bb7a7.jpg', desc: '全50集', period: '现代', artIds: ['11655163781253226496'] },
+    { name: '长征先锋', pic: 'https://boot-img.xuexi.cn/image/1005/process/521e22e4b1154a2d9551f6d9fbb4376d.jpg', desc: '全52集', period: '现代', artIds: ['7521238365152978329'] },
+    { name: '犟驴小红军', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/5646dcb04b6041abaff2359f45a2c96b_crop_1581052257107_h_422_w_750_1581052257185_h_422_w_750.jpg', desc: '全12集', period: '现代', artIds: ['1439398455075646484'] },
+    { name: '寻找英雄 小淘气长征记', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/9652b016cd394ae49590bac4010090e5_crop_new_h_422_w_750_h_422_w_750.jpg', desc: '全26集', period: '现代', artIds: ['783402746357409941'] },
+    { name: '那年那兔那些事儿', pic: 'https://boot-img.xuexi.cn/image/1006/process/9a020fdb20104931ad51743d44519c51.jpg', desc: '全3季', period: '现代', artIds: ['32561504674169041'] },
+    { name: '四渡赤水', pic: 'https://boot-img.xuexi.cn/image/1005/process/76fb7792312d42be936e04e65fca3325.jpg', desc: '全8集', period: '现代', artIds: ['8374057897549941762'] }
 ];
+
+// 动画 tab 的 id → 时期 映射
+const ANIMATION_PERIODS = {
+    ani_yuangu: '远古',
+    ani_xia: '夏商周',
+    ani_qinhan: '秦汉三国',
+    ani_jin: '晋南北朝',
+    ani_suitang: '隋唐宋',
+    ani_yuanmingqing: '元明清',
+    ani_modern: '现代'
+};
 
 const HEADERS = {
     'User-Agent': UA,
@@ -48,10 +67,17 @@ let appConfig = {
     title: '学习强国',
     site: SITE,
     tabs: [
+        
+        { name: '远古动画', ext: { id: 'ani_yuangu' }, ui: 1 },
+        { name: '夏商周动画', ext: { id: 'ani_xia' }, ui: 1 },
+        { name: '秦汉三国动画', ext: { id: 'ani_qinhan' }, ui: 1 },
+        { name: '晋南北朝动画', ext: { id: 'ani_jin' }, ui: 1 },
+        { name: '隋唐宋动画', ext: { id: 'ani_suitang' }, ui: 1 },
+        { name: '元明清动画', ext: { id: 'ani_yuanmingqing' }, ui: 1 },
+        { name: '现代动画', ext: { id: 'ani_modern' }, ui: 1 }
         { name: '电影', ext: { id: 'movie' }, ui: 1 },
         { name: '电视剧', ext: { id: 'movie_tv' }, ui: 1 },
         { name: '纪录片', ext: { id: 'movie_doc' }, ui: 1 },
-        { name: '动画', ext: { id: 'ani' }, ui: 1 }
     ]
 };
 
@@ -90,8 +116,14 @@ async function getCards(ext) {
     let id = ext.id || 'movie';
     let cards = [];
 
-    if (id === 'ani') {
-        ANIMATION_LIST.forEach(drama => {
+    // ---------- 动画（按历史时期拆分） ----------
+    if (id === 'ani' || ANIMATION_PERIODS[id]) {
+        const period = ANIMATION_PERIODS[id];
+        const list = period
+            ? ANIMATION_LIST.filter(d => d.period === period)
+            : ANIMATION_LIST;
+
+        list.forEach(drama => {
             cards.push({
                 vod_id: drama.artIds.join(','),
                 vod_name: drama.name,
@@ -103,6 +135,7 @@ async function getCards(ext) {
         return jsonify({ list: cards });
     }
 
+    // ---------- 其他频道 ----------
     let listUrl = CHANNEL_LIST[id];
     if (!listUrl) return jsonify({ list: [] });
 
