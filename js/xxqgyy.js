@@ -29,6 +29,7 @@ const ANIMATION_LIST = [
     // ----- 晋南北朝（暂无，可后续补充） -----
 
     // ----- 隋唐宋 -----
+    { name: '千秋诗颂', pic: 'https://boot-img.xuexi.cn/image/1005/process/87e3f266bd9946f4b3ba378621829009.jpg', desc: '全11集', period: '隋唐宋', artIds: ['8432909394850269379'] },
     { name: '少年岳飞', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/97e323ca74b84306ad29984e53ebb09b_crop_new_h_422_w_750_h_422_w_750.jpg', desc: '全1集', period: '隋唐宋', artIds: ['2462806302483100325'] },
 
     // ----- 元明清 -----
