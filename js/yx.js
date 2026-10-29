@@ -1,144 +1,152 @@
-const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.75(0x18004b66) NetType/4G Language/zh_CN';
-const SITE = 'https://app.mxhedu.com';
-const DEFAULT_PIC = 'https://img0.baidu.com/it/u=3056194363,3088267480&fm=253&fmt=auto&app=138&f=JPEG';
-// 🌟 https://app.mxhedu.com/cms-server/app/video/resourceInfo/1861984165058924546
+const cheerio = createCheerio();
 
-const TOKEN = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIyMDQ4NjMzMDE2MjA4NDEyNjc0QDE4NjE3MDY3MjQ0NjE1MzExMzdAMTg2MTM2Mzg5NDE0MDU1NTI2NSIsImlhdCI6MTc5MzEzODg0OSwiZXhwIjoxNzk1NzMwODQ5fQ.16MQFCQRm9yv_H3MZSALZSOWlkE518nivqOGve-6pF3Zxr5eW3GvYaw7liIHTPs4WYN-9Q7eLh5tiQnUm27R7Q';
+const SITE = 'https://www.yixi.tv';
+const API_SITE = 'https://www.yixi.tv/v3/api/site';
+const API_H5 = 'https://www.yixi.tv/v3/api/h5';
 
 const HEADERS = {
-    'User-Agent': UA,
-    'token': TOKEN,
-    'Referer': 'https://servicewechat.com/wx3beaa4a347f935ff/10/page-frame.html',
+    'User-Agent': 'Mozilla/5.0 (iPad; CPU OS 13_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/87.0.4280.77 Mobile/15E148 Safari/604.1',
+    'Referer': SITE + '/',
+    'Origin': SITE,
     'Accept': 'application/json, text/plain, */*',
-    'Content-Type': 'application/json'
+    'Accept-Language': 'zh-CN,zh;q=0.9',
+    'Authcode': '$yf&cpup8d%@s2h%',
+    'Cookie': 'Hm_lvt_889adc48ccf05684181736d6e2e31ed4=1790986893; Hm_lpvt_889adc48ccf05684181736d6e2e31ed4=1790986893; HMACCOUNT=9F8659EE0B2375FA',
 };
 
-const appConfig = {
+// 常见的 video_type 候选值
+const VIDEO_TYPES = [0, 1, 2, 3, 7, 10, 17];
+
+let appConfig = {
     ver: 1,
-    title: '萌想虎',
+    title: '一席',
     site: SITE,
     tabs: [
-        // 🌟 在这里加上了 ui: 1，强制前端渲染为横版卡片
-        { name: '看了还看', ext: { id: '1864237075788472322' }, ui: 1 },
-        { name: '首页A', ext: { id: '1861597294625574913' }, ui: 1 }
-    ]
+        { name: '演讲', ext: { id: 'speech' } },
+        { name: '记录', ext: { id: 'record' } },
+        { name: '枝桠', ext: { id: 'zhiya' } },
+    ],
 };
 
-async function getConfig() { return jsonify(appConfig); }
-
-function getImageUrl(imgPath) {
-    if (!imgPath) return DEFAULT_PIC;
-    if (imgPath.indexOf('http') === 0) return imgPath;
-    return `https://app.mxhedu.com/files/${imgPath.replace(/^\//, '')}`; 
+async function getConfig() {
+    return jsonify(appConfig);
 }
 
+// 列表
 async function getCards(ext) {
     ext = argsify(ext);
-    const url = `${SITE}/cms-server/app/home/page?pageId=${ext.id}`;
-    try {
-        const { data } = await $fetch.get(url, { headers: HEADERS });
-        let json = typeof data === 'string' ? argsify(data) : data;
-        if (!json || json.success === false) return jsonify({ list: [{ vod_id: 'err', vod_name: 'Token失效', vod_pic: DEFAULT_PIC }] });
+    let cards = [];
+    let page = ext.page || 1;
+    let id = ext.id || 'speech';
 
-        let cards = [];
-        let list = json.data.tiledList || json.data.videosList || [];
-
-        list.forEach(item => {
-            let cv = item.curriculumPageVo || item.videoInfoPageVo || item;
-            if (!cv || !cv.id) return;
-            
-            let pic = DEFAULT_PIC;
-            if (cv.imageJson) {
-                try {
-                    let imgObj = JSON.parse(cv.imageJson);
-                    // 优先取横图
-                    pic = getImageUrl(imgObj.mainImage || imgObj.leftImage || imgObj.horizontalPicture || '');
-                } catch (e) {}
-            }
-
-            cards.push({
-                vod_id: cv.id,
-                vod_name: cv.name || '未知名称',
-                vod_pic: pic,
-                vod_remarks: cv.episodesNum ? `全${cv.episodesNum}集` : '推荐',
-                ext: { id: cv.id }
-            });
-        });
-        return jsonify({ list: cards });
-    } catch (e) { return jsonify({ list: [] }); }
-}
-
-// 终极提取：直接解析数组，获取每一集的名字和数字ID
-async function getTracks(ext) {
-    ext = argsify(ext);
-    const courseId = ext.id;
-    let tracks = [];
+    const url = `${API_SITE}/${id}/?page=${page}&page_size=20&category_id=&order_by=0`;
+    const seenTitles = new Set();
 
     try {
-        const url = `${SITE}/cms-server/app/video/resourceInfo/${courseId}`;
         const { data } = await $fetch.get(url, { headers: HEADERS });
-        let json = typeof data === 'string' ? argsify(data) : data;
+        const json = argsify(data);
+        const list = json && json.data && json.data.items ? json.data.items : [];
 
-        if (json && json.success && Array.isArray(json.data)) {
-            json.data.forEach((item, index) => {
-                if (!item.videoName) return;
-                
-                tracks.push({
-                    name: item.videoName,
-                    ext: { courseId: courseId, videoId: item.id } 
-                });
-            });
-        }
-    } catch (e) {
-        console.log('获取剧集失败: ' + e.message);
-    }
+        for (let i = 0; i < list.length; i++) {
+            try {
+                const item = list[i];
+                if (!item) continue;
 
-    if (tracks.length === 0) {
-        tracks.push({ name: '解析失败，请重试', ext: { videoId: courseId } });
-    }
-    
-    return jsonify({ list: [{ title: '剧集列表', tracks: tracks }] });
-}
+                const title = item.title ? String(item.title).replace(/\s+/g, '').trim() : '';
+                if (!title || seenTitles.has(title)) continue;
 
-// 终极播放：用数字ID换取哈希值，再获取真实播放链接
-async function getPlayinfo(ext) {
-    ext = argsify(ext);
-    let realHashId = ext.videoId;
+                const vid = item.id ? String(item.id) : '';
+                if (!vid) continue;
 
-    // 如果这个 ID 是纯数字，说明它是刚才拿到的数字 ID（如 4214），我们需要去换取哈希
-    if (/^\d+$/.test(ext.videoId) && ext.courseId) {
-        try {
-            const infoUrl = `${SITE}/cms-server/app/video/info/${ext.courseId}/${ext.videoId}`;
-            const { data } = await $fetch.get(infoUrl, { headers: HEADERS });
-            let infoJson = typeof data === 'string' ? argsify(data) : data;
-            
-            if (infoJson && infoJson.success && infoJson.data && infoJson.data.mgtEntity) {
-                let playback = infoJson.data.mgtEntity.playbackAddress;
-                if (playback) {
-                    let pa = JSON.parse(playback);
-                    realHashId = pa.HD || pa.SD || pa.FHD || Object.values(pa)[0];
+                let cover = item.cover ? String(item.cover) : '';
+                if (cover && cover.indexOf('//') === 0) cover = 'https:' + cover;
+
+                let speaker = '';
+                if (item.speak && typeof item.speak === 'object' && item.speak.name) {
+                    speaker = String(item.speak.name);
                 }
-            }
-        } catch (e) {
-            console.log('换取哈希失败: ' + e.message);
-        }
-    }
 
-    const url = `${SITE}/cms-server/app/video/getPlayInfo`;
-    const postData = JSON.stringify({ videoId: realHashId });
+                const time = item.time ? String(item.time) : '';
 
-    try {
-        const { data } = await $fetch.post(url, postData, { headers: HEADERS });
-        let json = typeof data === 'string' ? argsify(data) : data;
-        
-        if (json && json.success && json.data && json.data.playInfoList && json.data.playInfoList.playInfo) {
-            const playInfo = json.data.playInfoList.playInfo[0];
-            if (playInfo && playInfo.playURL) {
-                return jsonify({ urls: [playInfo.playURL], headers: [{ 'User-Agent': UA }] });
-            }
+                cards.push({
+                    vod_id: vid,
+                    vod_name: title,
+                    vod_pic: cover,
+                    vod_remarks: speaker + (time ? ' · ' + time : ''),
+                    ext: { id: vid, type: -1 },
+                });
+
+                seenTitles.add(title);
+            } catch (e) {}
         }
     } catch (e) {}
-    return jsonify({ urls: [] });
+
+    return jsonify({ list: cards });
 }
 
-async function search(ext) { return jsonify({ list: [] }); }
+// 尝试用某个 video_type 去拿视频
+async function tryPlayDetail(vid, type) {
+    try {
+        const url = `${API_H5}/play_detail/?video_type=${type}&video_id=${vid}&album_id=0`;
+        const { data } = await $fetch.get(url, { headers: HEADERS });
+        const json = argsify(data);
+        const base = (json && json.data && json.data.base_items) ? json.data.base_items : {};
+        const videoUrls = base.video_url || [];
+
+        const validVideos = videoUrls
+            .filter(v => v && v.video_url)
+            .sort((a, b) => (b.type || 0) - (a.type || 0));
+
+        if (validVideos.length > 0) {
+            const best = validVideos[0];
+            let playUrl = String(best.video_url).replace('http:', 'https:');
+            let name = best.type_name ? String(best.type_name) : ('清晰度' + best.type);
+            return { name: name, url: playUrl };
+        }
+    } catch (e) {}
+    return null;
+}
+
+// 剧集：自动探测 video_type，找到第一个有视频地址的就用
+async function getTracks(ext) {
+    ext = argsify(ext);
+    let id = ext.id;
+    let groups = [];
+    let tracks = [];
+
+    // 依次尝试所有候选 type，直到拿到视频地址
+    for (let i = 0; i < VIDEO_TYPES.length; i++) {
+        const result = await tryPlayDetail(id, VIDEO_TYPES[i]);
+        if (result) {
+            tracks.push({ name: result.name, pan: '', ext: { url: result.url } });
+            break;
+        }
+    }
+
+    if (tracks.length > 0) {
+        groups.push({ title: '默认分组', tracks: tracks });
+    }
+
+    return jsonify({ list: groups });
+}
+
+// 播放
+async function getPlayinfo(ext) {
+    ext = argsify(ext);
+    const url = ext.url;
+    if (!url) return jsonify({ urls: [] });
+
+    return jsonify({
+        urls: [url],
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': SITE + '/',
+            'Origin': SITE,
+        }
+    });
+}
+
+// 搜索（暂不支持）
+async function search(ext) {
+    return jsonify({ list: [] });
+}
