@@ -74,10 +74,10 @@ let appConfig = {
         { name: '晋南北朝动画', ext: { id: 'ani_jin' }, ui: 1 },
         { name: '隋唐宋动画', ext: { id: 'ani_suitang' }, ui: 1 },
         { name: '元明清动画', ext: { id: 'ani_yuanmingqing' }, ui: 1 },
-        { name: '现代动画', ext: { id: 'ani_modern' }, ui: 1 }
+        { name: '现代动画', ext: { id: 'ani_modern' }, ui: 1 },
         { name: '电影', ext: { id: 'movie' }, ui: 1 },
         { name: '电视剧', ext: { id: 'movie_tv' }, ui: 1 },
-        { name: '纪录片', ext: { id: 'movie_doc' }, ui: 1 },
+        { name: '纪录片', ext: { id: 'movie_doc' }, ui: 1 }
     ]
 };
 
