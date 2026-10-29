@@ -77,7 +77,7 @@ let appConfig = {
         { name: '现代动画', ext: { id: 'ani_modern' }, ui: 1 },
         { name: '电影', ext: { id: 'movie' }, ui: 1 },
         { name: '电视剧', ext: { id: 'movie_tv' }, ui: 1 },
-        { name: '纪录片', ext: { id: 'movie_doc' }, ui: 1 }
+        { name: '纪录片', ext: { id: 'movie_doc' }, ui: 1 },
     ]
 };
 
