@@ -37,6 +37,8 @@ const ANIMATION_LIST = [
     { name: '少年师爷', pic: 'https://boot-img.xuexi.cn/image/1005/process/7de0a98b01d641f99324823f2cd9912c.jpg', desc: '全26集', period: '元明清', artIds: ['2056682991035843311'] },
 
     // ----- 现代 -----
+    { name: '大鸾——周恩来童年读书的故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/996d7a95d0e04a92b55e25fd6767bc36.jpg', desc: '全1集', period: '现代', artIds: ['4606834724344024542'] },
+    
     { name: '林海雪原', pic: 'https://boot-img.xuexi.cn/image/1005/process/98bedf46ee8746dbaadd86b3e73bb7a7.jpg', desc: '全50集', period: '现代', artIds: ['11655163781253226496'] },
     { name: '长征先锋', pic: 'https://boot-img.xuexi.cn/image/1005/process/521e22e4b1154a2d9551f6d9fbb4376d.jpg', desc: '全52集', period: '现代', artIds: ['7521238365152978329'] },
     { name: '犟驴小红军', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/5646dcb04b6041abaff2359f45a2c96b_crop_1581052257107_h_422_w_750_1581052257185_h_422_w_750.jpg', desc: '全12集', period: '现代', artIds: ['1439398455075646484'] },
