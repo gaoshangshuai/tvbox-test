@@ -16,7 +16,8 @@ const ANIMATION_LIST = [
     { name: '哪吒传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/395e971624d243619c0cf444418ef5b9.jpg', desc: '全52集', artIds: ['10428547373355348143'] },
     { name: '山海传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/d15683e37efa4d11ab877e9055a098ea.jpg', desc: '全13集', artIds: ['1860699912324656805'] },
     { name: '神话故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/a358ddf4ea2e469eb2c9a465ec87de21.jpg', desc: '全24集', artIds: ['6142922305421370437'] },
-    { name: '神话故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/f063b05bd36943eb8f55a1c44168b917.jpg', desc: '全104集', artIds: ['8937425226398520134'] },
+    { name: '孔子', pic: 'https://boot-img.xuexi.cn/image/1005/process/f063b05bd36943eb8f55a1c44168b917.jpg', desc: '全104集', artIds: ['8937425226398520134'] },
+    { name: '少年师爷', pic: 'https://boot-img.xuexi.cn/image/1005/process/7de0a98b01d641f99324823f2cd9912c.jpgg', desc: '全26集', artIds: ['2056682991035843311'] },
    
     { name: '大禹治水', pic: 'https://boot-img.xuexi.cn/image/1005/process/dc3f12c663a1437fbf18669d8c312d37.png', desc: '全12集', artIds: ['2222089652804542292'] },
     { name: '中华治水故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/01a06756a5bc4818b8f47e31b2903df9.jpg', desc: '全26集', artIds: ['17740314066450394774'] },
