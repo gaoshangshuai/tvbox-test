@@ -67,7 +67,6 @@ let appConfig = {
     title: '学习强国',
     site: SITE,
     tabs: [
-        
         { name: '远古动画', ext: { id: 'ani_yuangu' }, ui: 1 },
         { name: '夏商周动画', ext: { id: 'ani_xia' }, ui: 1 },
         { name: '秦汉三国动画', ext: { id: 'ani_qinhan' }, ui: 1 },
@@ -77,7 +76,7 @@ let appConfig = {
         { name: '现代动画', ext: { id: 'ani_modern' }, ui: 1 },
         { name: '电影', ext: { id: 'movie' }, ui: 1 },
         { name: '电视剧', ext: { id: 'movie_tv' }, ui: 1 },
-        { name: '纪录片', ext: { id: 'movie_doc' }, ui: 1 },
+        { name: '纪录片', ext: { id: 'movie_doc' }, ui: 1 }
     ]
 };
 
@@ -94,15 +93,15 @@ function makeLandscape(url) {
     if (!url) return url;
     if (url.indexOf('x-oss-process') !== -1) return url;
     if (url.indexOf('images.weserv.nl') !== -1) return url;
-    
+
     const m = url.match(/_h_(\d+)_w_(\d+)/);
     if (m && parseInt(m[2], 10) > parseInt(m[1], 10)) return url;
-    
+
     if (url.indexOf('boot-img.xuexi.cn') !== -1) {
         const sep = url.indexOf('?') === -1 ? '?' : '&';
         return url + sep + 'x-oss-process=image/resize,m_fill,w_750,h_422';
     }
-    
+
     const clean = url.replace(/^https?:\/\//, '');
     return 'https://images.weserv.nl/?url=' + encodeURIComponent(clean) + '&w=750&h=422&fit=cover&output=jpg';
 }
@@ -113,7 +112,7 @@ async function getCards(ext) {
     let page = ext.page || 1;
     if (page > 1) return jsonify({ list: [] });
 
-    let id = ext.id || 'movie';
+    let id = ext.id || 'ani_yuangu';
     let cards = [];
 
     // ---------- 动画（按历史时期拆分） ----------
@@ -198,7 +197,7 @@ async function fetchSingleId(id) {
         const start = text.indexOf('(');
         const end = text.lastIndexOf(')');
         if (start !== -1 && end !== -1) jsonStr = text.substring(start + 1, end);
-        
+
         let detail = argsify(jsonStr);
 
         if (detail && detail.sub_items && detail.sub_items.length > 0) return detail.sub_items;
@@ -215,7 +214,7 @@ async function fetchSingleId(id) {
         const sStart = sText.indexOf('(');
         const sEnd = sText.lastIndexOf(')');
         if (sStart !== -1 && sEnd !== -1) sJsonStr = sText.substring(sStart + 1, sEnd);
-        
+
         let sDetail = argsify(sJsonStr);
 
         if (sDetail && sDetail.slots && sDetail.slots.length > 0) {
@@ -234,7 +233,7 @@ async function fetchSingleId(id) {
             return allEpisodes;
         }
     } catch (e) {}
-    
+
     return [];
 }
 
@@ -247,7 +246,7 @@ async function fetchSingleEpisode(artId) {
         const start = text.indexOf('(');
         const end = text.lastIndexOf(')');
         if (start !== -1 && end !== -1) jsonStr = text.substring(start + 1, end);
-        
+
         let detail = argsify(jsonStr);
         if (detail && detail.videos && detail.videos.length > 0) {
             let info = detail.videos[0].video_storage_info || [];
@@ -267,7 +266,7 @@ async function getTracks(ext) {
         for (let id of ext.artIds) {
             subItems = subItems.concat(await fetchSingleId(id));
         }
-        
+
         for (let i = 0; i < subItems.length; i++) {
             let item = subItems[i];
             let epName = item.title || `第${i + 1}集`;
@@ -300,9 +299,9 @@ async function getPlayinfo(ext) {
     let url = ext.url;
     if (!url) return jsonify({ urls: [] });
     let urls = Array.isArray(url) ? url : [url];
-    return jsonify({ 
-        urls: urls, 
-        headers: { 'User-Agent': UA, 'Referer': SITE + '/' } 
+    return jsonify({
+        urls: urls,
+        headers: { 'User-Agent': UA, 'Referer': SITE + '/' }
     });
 }
 
