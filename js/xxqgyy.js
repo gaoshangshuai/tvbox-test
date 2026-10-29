@@ -22,6 +22,7 @@ const ANIMATION_LIST = [
     { name: '中华治水故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/01a06756a5bc4818b8f47e31b2903df9.jpg', desc: '全26集', period: '夏商周', artIds: ['17740314066450394774'] },
     { name: '少年师爷之公祭大禹', pic: 'https://boot-img.xuexi.cn/image/1005/process/3e31244533b14847b6f64ccec0585a25.jpg', desc: '全26集', period: '夏商周', artIds: ['5828744918912178544'] },
     { name: '孔子', pic: 'https://boot-img.xuexi.cn/image/1005/process/f063b05bd36943eb8f55a1c44168b917.jpg', desc: '全104集', period: '夏商周', artIds: ['8937425226398520134'] },
+    { name: '孟母教子', pic: 'https://boot-img.xuexi.cn/image/1005/process/5412f4ba1a9c40709341581461af2f2a.jpgg', desc: '全30集', period: '夏商周', artIds: ['14368570024158892507'] },
 
     // ----- 秦汉三国 -----
     { name: '丝路传奇特使张骞', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/7ec29b537147417f9b7c57d284d55c9c_crop_1581671578923_h_422_w_750_1581671578946_h_422_w_750.jpg', desc: '全52集', period: '秦汉三国', artIds: ['4223661874274269490'] },
@@ -38,7 +39,9 @@ const ANIMATION_LIST = [
 
     // ----- 现代 -----
     { name: '大鸾——周恩来童年读书的故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/996d7a95d0e04a92b55e25fd6767bc36.jpg', desc: '全1集', period: '现代', artIds: ['4606834724344024542'] },
-    
+    { name: '翻开这一页', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/c174268cf5664260a6ec597f2217602a_crop_1582088569128_h_422_w_750_1582088569182_h_422_w_750.jpg', desc: '全26集', period: '现代', artIds: ['1059017875470904906'] },
+    { name: '鸡毛信', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/ea079c1c21634554885e90668ebb0800_crop_1580975481166_h_422_w_750_1580975481291_h_422_w_750.jpg', desc: '全12集', period: '现代', artIds: ['13355596699438012141'] },
+   
     { name: '林海雪原', pic: 'https://boot-img.xuexi.cn/image/1005/process/98bedf46ee8746dbaadd86b3e73bb7a7.jpg', desc: '全50集', period: '现代', artIds: ['11655163781253226496'] },
     { name: '长征先锋', pic: 'https://boot-img.xuexi.cn/image/1005/process/521e22e4b1154a2d9551f6d9fbb4376d.jpg', desc: '全52集', period: '现代', artIds: ['7521238365152978329'] },
     { name: '犟驴小红军', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/5646dcb04b6041abaff2359f45a2c96b_crop_1581052257107_h_422_w_750_1581052257185_h_422_w_750.jpg', desc: '全12集', period: '现代', artIds: ['1439398455075646484'] },
