@@ -13,29 +13,40 @@ const CHANNEL_LIST = {
 // ==================== 2. 动画列表（按历史时期分类） ====================
 const ANIMATION_LIST = [
     // ----- 远古 -----
-    { name: '山海传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/d15683e37efa4d11ab877e9055a098ea.jpg', desc: '全13集', period: '远古', artIds: ['1860699912324656805'] },
     { name: '神话故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/a358ddf4ea2e469eb2c9a465ec87de21.jpg', desc: '全24集', period: '远古', artIds: ['6142922305421370437'] },
+    { name: '山海精奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/0678c9f7ff344c9fbcdbe7077d54c9ae.jpg', desc: '全31集', period: '远古', artIds: ['16368297497425794160'] },
+    
+    { name: '山海传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/d15683e37efa4d11ab877e9055a098ea.jpg', desc: '全13集', period: '远古', artIds: ['1860699912324656805'] },
+    { name: '大禹治水', pic: 'https://boot-img.xuexi.cn/image/1005/process/dc3f12c663a1437fbf18669d8c312d37.png', desc: '全12集', period: '夏商周', artIds: ['2222089652804542292'] },
+    { name: '中华治水故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/01a06756a5bc4818b8f47e31b2903df9.jpg', desc: '全26集', period: '夏商周', artIds: ['17740314066450394774'] },
+   
 
     // ----- 夏商周 -----
     { name: '哪吒传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/395e971624d243619c0cf444418ef5b9.jpg', desc: '全52集', period: '夏商周', artIds: ['10428547373355348143'] },
-    { name: '大禹治水', pic: 'https://boot-img.xuexi.cn/image/1005/process/dc3f12c663a1437fbf18669d8c312d37.png', desc: '全12集', period: '夏商周', artIds: ['2222089652804542292'] },
-    { name: '中华治水故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/01a06756a5bc4818b8f47e31b2903df9.jpg', desc: '全26集', period: '夏商周', artIds: ['17740314066450394774'] },
+    { name: '少年英雄小哪吒', pic: 'https://boot-img.xuexi.cn/image/1005/process/2efa18bef839420d8a6a2f3025d1bde3.png', desc: '全26集', period: '夏商周', artIds: ['15813614759084751263'] },
+    
+   
     { name: '少年师爷之公祭大禹', pic: 'https://boot-img.xuexi.cn/image/1005/process/3e31244533b14847b6f64ccec0585a25.jpg', desc: '全26集', period: '夏商周', artIds: ['5828744918912178544'] },
     { name: '孔子', pic: 'https://boot-img.xuexi.cn/image/1005/process/f063b05bd36943eb8f55a1c44168b917.jpg', desc: '全104集', period: '夏商周', artIds: ['8937425226398520134'] },
     { name: '孟母教子', pic: 'https://boot-img.xuexi.cn/image/1005/process/5412f4ba1a9c40709341581461af2f2a.jpg', desc: '全30集', period: '夏商周', artIds: ['14368570024158892507'] },
 
     // ----- 秦汉三国 -----
     { name: '丝路传奇特使张骞', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/7ec29b537147417f9b7c57d284d55c9c_crop_1581671578923_h_422_w_750_1581671578946_h_422_w_750.jpg', desc: '全52集', period: '秦汉三国', artIds: ['4223661874274269490'] },
+    { name: '丝路', pic: 'https://boot-img.xuexi.cn/image/1005/process/cfac9f6f92f54ef8b2342227ea3288bb.jpg', desc: '全52集', period: '秦汉三国', artIds: ['14403418793113483431'] },
 
     // ----- 晋南北朝（暂无，可后续补充） -----
-
+    { name: '好心宝宝之冼夫人', pic: 'https://boot-img.xuexi.cn/image/1005/process/d73682fd1e8d4c2c853e0c088f51bbd7.jpg', desc: '全11集', period: '晋南北朝', artIds: ['6635019207490556798'] },
     // ----- 隋唐宋 -----
     { name: '千秋诗颂', pic: 'https://boot-img.xuexi.cn/image/1005/process/87e3f266bd9946f4b3ba378621829009.jpg', desc: '全11集', period: '隋唐宋', artIds: ['8432909394850269379'] },
     { name: '少年岳飞', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/97e323ca74b84306ad29984e53ebb09b_crop_new_h_422_w_750_h_422_w_750.jpg', desc: '全1集', period: '隋唐宋', artIds: ['2462806302483100325'] },
+    { name: '敦煌的故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/00dfd001cd334a4196493b1f0e42794b.jpg', desc: '全13集', period: '隋唐宋', artIds: ['16588381422921021829'] },
+    { name: '杨家将(上)', pic: 'https://boot-img.xuexi.cn/image/1005/process/b3b64bccc583471da068ef067de828bf.jpg', desc: '全6集', period: '隋唐宋', artIds: ['3323720718145398493'] },
+    { name: '少年苏东坡', pic: 'https://boot-img.xuexi.cn/image/1005/process/37053f991326439aafefa3d5794364b0.jpg', desc: '全52集', period: '隋唐宋', artIds: ['16464293379283892941'] },
 
     // ----- 元明清 -----
     { name: '西游记', pic: 'https://boot-img.xuexi.cn/image/1005/process/21d3eebc28164884b6e6b711415ee3a8.jpg', desc: '全52集', period: '元明清', artIds: ['6125097417779881106'] },
     { name: '少年师爷', pic: 'https://boot-img.xuexi.cn/image/1005/process/7de0a98b01d641f99324823f2cd9912c.jpg', desc: '全26集', period: '元明清', artIds: ['2056682991035843311'] },
+    { name: '故宫里的大怪兽 洞光宝石的秘密', pic: 'https://boot-img.xuexi.cn/image/1005/process/0a184835891e4ddb953149daaa909900.jpg', desc: '全26集', period: '元明清', artIds: ['9976204589374160998'] },
 
     // ----- 现代 -----
     { name: '大鸾——周恩来童年读书的故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/996d7a95d0e04a92b55e25fd6767bc36.jpg', desc: '全1集', period: '现代', artIds: ['4606834724344024542'] },
