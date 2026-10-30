@@ -16,10 +16,6 @@ const ANIMATION_LIST = [
     { name: '神话故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/a358ddf4ea2e469eb2c9a465ec87de21.jpg', desc: '全24集', period: '远古', artIds: ['6142922305421370437'] },
     { name: '山海精奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/0678c9f7ff344c9fbcdbe7077d54c9ae.jpg', desc: '全31集', period: '远古', artIds: ['16368297497425794160'] },
     { name: '山海传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/d15683e37efa4d11ab877e9055a098ea.jpg', desc: '全13集', period: '远古', artIds: ['1860699912324656805'] },
-    { name: '大禹治水', pic: 'https://boot-img.xuexi.cn/image/1005/process/dc3f12c663a1437fbf18669d8c312d37.png', desc: '全12集', period: '夏商周', artIds: ['2222089652804542292'] },
-    { name: '中华治水故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/01a06756a5bc4818b8f47e31b2903df9.jpg', desc: '全26集', period: '夏商周', artIds: ['17740314066450394774'] },
-    { name: '少年师爷之公祭大禹', pic: 'https://boot-img.xuexi.cn/image/1005/process/3e31244533b14847b6f64ccec0585a25.jpg', desc: '全26集', period: '夏商周', artIds: ['5828744918912178544'] },
-    { name: '年画中的传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/c2d80bcb5f5a4cf08ba1adcd9283f392.jpg', desc: '全30集', period: '夏商周', artIds: ['10409760182347855695'] },
     { name: '百鸟朝凤', pic: 'https://boot-img.xuexi.cn/image/1005/process/07f0383da8b14e7fbbcd6c17642bbd57.jpg', desc: '全13期', period: '远古', artIds: ['16779415789626394562'] },
     { name: '故事奶奶 第二季', pic: 'https://boot-img.xuexi.cn/image/1005/process/63ee34fdf1fa44d8bc7d6d9b207230e6.jpg', desc: '全26集', period: '远古', artIds: ['17455611164200715619'] },
     { name: '愚公移山', pic: 'https://boot-img.xuexi.cn/image/1005/process/9bc27ea7a2a443d48144b8e63ec6ee13.jpg', desc: '全10集', period: '远古', artIds: ['9289807359150837778'] },
@@ -27,10 +23,14 @@ const ANIMATION_LIST = [
 
     // -------------------- 夏商周 --------------------
     { name: '哪吒闹海', pic: 'https://boot-img.xuexi.cn/image/1005/process/03dc2ef7f6b14b2d967359dc282c582f.jpg', desc: '53:26', period: '夏商周', artIds: ['15027617659695369041'] },
-    { name: '哪吒传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/395e971624d243619c0cf444418ef5b9.jpg', desc: '全52集', period: '夏商周', artIds: ['10428547373355348143'] },
-    { name: '少年英雄小哪吒', pic: 'https://boot-img.xuexi.cn/image/1005/process/2efa18bef839420d8a6a2f3025d1bde3.png', desc: '全26集', period: '夏商周', artIds: ['15813614759084751263'] },
     { name: '东郭先生', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/71d42f7e1b6a4a27ab8d13a18eeace90_crop_1575961744337_h_422_w_750_1575961744432_h_422_w_750.jpg', desc: '10:21', period: '夏商周', artIds: ['12334704250988591233'] },
     { name: '鹬蚌相争', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/06b42301bd4f44c1aef756336880c1a4_crop_new_h_422_w_750_h_422_w_750.jpg', desc: '09:38', period: '夏商周', artIds: ['6081558343718768596'] },
+    { name: '大禹治水', pic: 'https://boot-img.xuexi.cn/image/1005/process/dc3f12c663a1437fbf18669d8c312d37.png', desc: '全12集', period: '夏商周', artIds: ['2222089652804542292'] },
+    { name: '中华治水故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/01a06756a5bc4818b8f47e31b2903df9.jpg', desc: '全26集', period: '夏商周', artIds: ['17740314066450394774'] },
+    { name: '年画中的传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/c2d80bcb5f5a4cf08ba1adcd9283f392.jpg', desc: '全30集', period: '夏商周', artIds: ['1040976018234785569'] },
+    { name: '哪吒传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/395e971624d243619c0cf444418ef5b9.jpg', desc: '全52集', period: '夏商周', artIds: ['10428547373355348143'] },
+    { name: '少年英雄小哪吒', pic: 'https://boot-img.xuexi.cn/image/1005/process/2efa18bef839420d8a6a2f3025d1bde3.png', desc: '全26集', period: '夏商周', artIds: ['15813614759084751263'] },
+    { name: '少年师爷之公祭大禹', pic: 'https://boot-img.xuexi.cn/image/1005/process/3e31244533b14847b6f64ccec0585a25.jpg', desc: '全26集', period: '夏商周', artIds: ['5828744918912178544'] },
     { name: '孔子', pic: 'https://boot-img.xuexi.cn/image/1005/process/f063b05bd36943eb8f55a1c44168b917.jpg', desc: '全104集', period: '夏商周', artIds: ['8937425226398520134'] },
     { name: '孟母教子', pic: 'https://boot-img.xuexi.cn/image/1005/process/5412f4ba1a9c40709341581461af2f2a.jpg', desc: '全30集', period: '夏商周', artIds: ['14368570024158892507'] },
     { name: '论语名句故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/e6430273713d4cc1887c338118f09225.jpg', desc: '全20期', period: '夏商周', artIds: ['18222682595813693765'] },
@@ -104,6 +104,15 @@ const ANIMATION_LIST = [
     { name: '深海告别曲《再见深海》', pic: 'https://boot-img.xuexi.cn/image/1005/process/0ad2d8c6943b40a49712c98f68c0b50b.jpg', desc: '03:06', period: '现代', artIds: ['13043879645056563589'] },
     { name: '我们的冬奥预告', pic: 'https://boot-img.xuexi.cn/image/1005/process/83239b4e4ee74da7ac92036fd5d95e16.jpg', desc: '01:05', period: '现代', artIds: ['12756107224700013763'] },
     { name: '罗小黑战记推广曲《不再流浪》', pic: 'https://boot-img.xuexi.cn/image/1005/process/20807ebdd576402982f9d1c9c03d32cc.jpg', desc: '03:36', period: '现代', artIds: ['9019086056293013635'] },
+
+    // 新增：马克思漫漫说 第二季 (合集)
+    { name: '马克思漫漫说 第二季', pic: 'https://boot-img.xuexi.cn/image/1005/process/95fe6b3cb58d463f868da0dcdc3e0530.jpg', desc: '全25集', period: '现代', artIds: [
+        '544541903315180359', '4851888343721936723', '8280378294087202065', '8307681827868326121', '16524726828163327186', 
+        '12645233506649837272', '16366517209256969974', '11991398488350960501', '7988382943184678086', '8484704658507228760', 
+        '4677831131502269938', '11841784025549448141', '6378668137508482340', '4272772930657282444', '1678270336792490467', 
+        '12563263635022795321', '9694135981644949777', '8274380091176973979', '12844420073669733941', '2859433694212769328',
+        '16296196785220226677', '2654280381523635990', '13771174679972616032', '8984154353684226952', '8928362787155472894'
+    ]},
 
     // -------------------- 经典动画 --------------------
     { name: '三个和尚', pic: 'https://boot-img.xuexi.cn/image/1020/process/3b621d686f61496dab3cef5541e6b114.jpg', desc: '18:43', period: '经典动画', artIds: ['945854044800212979'] },
