@@ -15,11 +15,12 @@ const ANIMATION_LIST = [
     // ----- 远古 -----
     { name: '神话故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/a358ddf4ea2e469eb2c9a465ec87de21.jpg', desc: '全24集', period: '远古', artIds: ['6142922305421370437'] },
     { name: '山海精奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/0678c9f7ff344c9fbcdbe7077d54c9ae.jpg', desc: '全31集', period: '远古', artIds: ['16368297497425794160'] },
-    
     { name: '山海传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/d15683e37efa4d11ab877e9055a098ea.jpg', desc: '全13集', period: '远古', artIds: ['1860699912324656805'] },
     { name: '大禹治水', pic: 'https://boot-img.xuexi.cn/image/1005/process/dc3f12c663a1437fbf18669d8c312d37.png', desc: '全12集', period: '夏商周', artIds: ['2222089652804542292'] },
     { name: '中华治水故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/01a06756a5bc4818b8f47e31b2903df9.jpg', desc: '全26集', period: '夏商周', artIds: ['17740314066450394774'] },
-   
+    { name: '年画中的传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/c2d80bcb5f5a4cf08ba1adcd9283f392.jpg', desc: '全30集', period: '夏商周', artIds: ['1040976018234785569'] },
+    { name: '茶婆婆渔婆婆蚕婆婆第一季', pic: 'https://boot-img.xuexi.cn/image/1009/process/cd090627d4a74cd2ab3c19e44317dd2d.jpg', desc: '全12集', period: '夏商周', artIds: ['3532802750074198149'] },
+    { name: '茶婆婆渔婆婆蚕婆婆第二季', pic: 'https://boot-img.xuexi.cn/image/1005/process/fac5797a9a314617b15bad0879c5276a.jpg', desc: '全12集', period: '夏商周', artIds: ['5808432544675419092'] },
 
     // ----- 夏商周 -----
     { name: '哪吒传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/395e971624d243619c0cf444418ef5b9.jpg', desc: '全52集', period: '夏商周', artIds: ['10428547373355348143'] },
