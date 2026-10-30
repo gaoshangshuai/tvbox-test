@@ -27,7 +27,7 @@ const ANIMATION_LIST = [
     { name: '鹬蚌相争', pic: 'https://boot-img.xuexi.cn/crawler/imageServer/06b42301bd4f44c1aef756336880c1a4_crop_new_h_422_w_750_h_422_w_750.jpg', desc: '09:38', period: '夏商周', artIds: ['6081558343718768596'] },
     { name: '大禹治水', pic: 'https://boot-img.xuexi.cn/image/1005/process/dc3f12c663a1437fbf18669d8c312d37.png', desc: '全12集', period: '夏商周', artIds: ['2222089652804542292'] },
     { name: '中华治水故事', pic: 'https://boot-img.xuexi.cn/image/1005/process/01a06756a5bc4818b8f47e31b2903df9.jpg', desc: '全26集', period: '夏商周', artIds: ['17740314066450394774'] },
-    { name: '年画中的传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/c2d80bcb5f5a4cf08ba1adcd9283f392.jpg', desc: '全30集', period: '夏商周', artIds: ['1040976018234785569'] },
+    { name: '年画中的传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/c2d80bcb5f5a4cf08ba1adcd9283f392.jpg', desc: '全30集', period: '夏商周', artIds: ['10409760182347855695'] },
     { name: '哪吒传奇', pic: 'https://boot-img.xuexi.cn/image/1005/process/395e971624d243619c0cf444418ef5b9.jpg', desc: '全52集', period: '夏商周', artIds: ['10428547373355348143'] },
     { name: '少年英雄小哪吒', pic: 'https://boot-img.xuexi.cn/image/1005/process/2efa18bef839420d8a6a2f3025d1bde3.png', desc: '全26集', period: '夏商周', artIds: ['15813614759084751263'] },
     { name: '少年师爷之公祭大禹', pic: 'https://boot-img.xuexi.cn/image/1005/process/3e31244533b14847b6f64ccec0585a25.jpg', desc: '全26集', period: '夏商周', artIds: ['5828744918912178544'] },
