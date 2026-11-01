@@ -1,0 +1,14 @@
+{
+  "_note": "xptv支持vod，xml格式不识别，统一用json格式",
+  "sites": [
+    {
+      "key": "jjw",
+      "name": "剧集屋",
+      "type": 1,
+      "api": "https://www.vipjuji.com/api.php/provide/vod/",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1
+    }
+  ]
+}
