@@ -7,12 +7,12 @@
       "api": "csp_233dm",
       "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/233dm.js"
     },
-    {
+   {
       "key": "vipjuji",
       "name": "剧集屋",
       "type": 3,
       "api": "csp_MacCMS",
-      "ext": "https://www.vipjuji.com"
+      "ext": "https://www.vipjuji.com/api.php/provide/vod/"
     }
   ]
 }
