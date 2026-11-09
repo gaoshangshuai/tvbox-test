@@ -6,7 +6,7 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit
 const UA_PLAY = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 let appConfig = {
-    ver: 202611093,
+    ver: 202611094,
     title: '乐视视频',
     site: 'https://lefun.le.com',
     tabs: [
@@ -93,15 +93,72 @@ function epOrderKey(v, fallbackIdx) {
     return m ? parseInt(m[1], 10) : 999999 + fallbackIdx;
 }
 
+// lefun 官方播放数据接口（lefun 网页版播放页的 SSR 数据源）
+// https://lefun.le.com/api/play/{vid}
+// 返回 { pageInfo, introList(含 title/总集数), episodeList{cnt,current_page,page_size,list[]}, ... }
+// 特性：返回「入口 vid 所在的那一页」，每页 50 条，不响应 page 参数。
+// 部分专辑（如少儿动漫）在 le.com PC 平台整体受限（card/dynamic videolist 为空，
+// www.le.com 播放页 platformErr），但 lefun/h5 平台可用，且 mms 播放接口仍能出流。
+async function fetchLefunPage(vid) {
+    const api = `https://lefun.le.com/api/play/${vid}`;
+    const res = await $fetch.get(api, {
+        headers: { 'User-Agent': UA, 'Referer': 'https://lefun.le.com/' }
+    });
+    let raw = typeof res === 'string' ? res : (res.data || '');
+    let json = JSON.parse(raw);
+    const epList = (json && json.episodeList) || {};
+    const intro = (json && json.introList) || {};
+    const eps = [];
+    (epList.list || []).forEach(v => {
+        let epVid = String(v.vid || '');
+        if (!epVid) return;
+        eps.push({
+            vid: epVid,
+            episode: String(v.episode == null ? (v.porder == null ? '' : v.porder) : v.episode),
+            title: String(v.nameCn || v.title || '')
+        });
+    });
+    return {
+        title: String(intro.title || ''),
+        eps: eps,
+        cnt: parseInt(epList.cnt, 10) || parseInt(intro.total_episode, 10) || 0,
+        pageSize: parseInt(epList.page_size, 10) || 50
+    };
+}
+
+// 受限专辑补页：用标题搜索拿到「最后一集 vid」（搜索结果的 videoList 预览含首尾集），
+// 再以该 vid 调 lefun 接口取最后一页，与第 1 页合并（每页50，两页即可覆盖 ≤100 集的专辑）
+async function fetchLefunLastPage(title) {
+    try {
+        const api = `https://d-api-m.le.com/search/result?wd=${encodeURIComponent(title)}`;
+        const res = await $fetch.get(api, {
+            headers: { 'User-Agent': UA_PLAY, 'Referer': 'https://lefun.le.com/search' }
+        });
+        let raw = typeof res === 'string' ? res : (res.data || '');
+        let json = JSON.parse(raw);
+        const list = (json && json.data && json.data.list) || [];
+        for (const item of list) {
+            const vl = item.videoList || [];
+            if (vl.length >= 2) {
+                const last = vl[vl.length - 1];
+                if (last && last.vid) return String(last.vid);
+            }
+        }
+    } catch (e) {}
+    return '';
+}
+
 async function getTracks(ext) {
     ext = JSON.parse(ext);
     let vid = String(ext.id || '');
     let tracks = [];
-    let merged = [];      // 所有页合并后的原始剧集数据
+    let merged = [];      // 所有来源合并后的剧集数据（统一形状 {vid, episode, title}）
     let seenVid = {};
+    let totalCnt = 0;     // 官方元数据给出的总集数
 
     try {
-        const MAX_PAGE = 10; // 每页100条，最多覆盖1000集
+        // 主路：card/dynamic 翻页（每页100条，绝大多数剧集/综艺可用）
+        const MAX_PAGE = 10;
         for (let page = 1; page <= MAX_PAGE; page++) {
             const api = `https://d-api-m.le.com/card/dynamic?platform=pc&type=episode&vid=${vid}&page=${page}`;
             const res = await $fetch.get(api, {
@@ -119,14 +176,50 @@ async function getTracks(ext) {
                 let epVid = String(v.vid || '');
                 if (!epVid || seenVid[epVid]) return;
                 seenVid[epVid] = 1;
-                merged.push(v);
+                merged.push({ vid: epVid, episode: v.episode, title: v.title });
             });
 
             // 终止条件：已集满总数 / 本页不满一页（说明是最后一页）/ isEnd 标记
             const cnt = parseInt(ep.cnt, 10) || 0;
+            const allcnt = parseInt(ep.allcnt, 10) || 0;
+            // cnt 是实际收录集数；受限专辑 cnt 为 null，此时用 allcnt
+            if (cnt > 0 && cnt > totalCnt) totalCnt = cnt;
+            if (cnt === 0 && allcnt > totalCnt) totalCnt = allcnt;
             if (cnt > 0 && merged.length >= cnt) break;
             if (ep.videolist.length < 100) break;
-            if (parseInt(ep.isEnd, 10) === 1) break;
+            if (parseInt(ep.isEnd, 10) === 1 && cnt > 0) break;
+        }
+
+        // 兜底：card/dynamic 拿不满（平台受限专辑：videolist 为空 / 只有部分免费集）
+        // → lefun /api/play/{vid} 补集（返回入口 vid 所在页，每页50条）
+        if (merged.length < totalCnt || merged.length === 0) {
+            try {
+                const lf = await fetchLefunPage(vid);
+                if (lf.eps.length > 0) {
+                    if (lf.cnt > totalCnt) totalCnt = lf.cnt;
+                    lf.eps.forEach(v => {
+                        if (!seenVid[v.vid]) {
+                            seenVid[v.vid] = 1;
+                            merged.push(v);
+                        }
+                    });
+                    // 仍不满总数 → 用标题搜索拿最后一集 vid，取最后一页合并
+                    if (merged.length < totalCnt && lf.title) {
+                        const lastVid = await fetchLefunLastPage(lf.title);
+                        if (lastVid) {
+                            const lf2 = await fetchLefunPage(lastVid);
+                            lf2.eps.forEach(v => {
+                                if (!seenVid[v.vid]) {
+                                    seenVid[v.vid] = 1;
+                                    merged.push(v);
+                                }
+                            });
+                        }
+                    }
+                }
+            } catch (e2) {
+                console.log('lefun 补集失败: ' + e2.message);
+            }
         }
 
         if (merged.length > 0) {
@@ -137,7 +230,7 @@ async function getTracks(ext) {
 
             let used = {};
             ordered.forEach(({ v }, idx) => {
-                let name = merged.length === 1 ? '正片' : epTrackName(v, idx);
+                let name = ordered.length === 1 ? '正片' : epTrackName(v, idx);
                 // 重名兜底（同一天多集 / 标题重复）
                 if (used[name]) {
                     used[name] = used[name] + 1;
