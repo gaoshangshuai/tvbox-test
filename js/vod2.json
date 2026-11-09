@@ -106,6 +106,13 @@
   "api": "csp_zgfyw",
   "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/zgfyw.js"
 }, 
+    {
+  "key": "lstv",
+  "name": "乐视tv",
+  "type": 3,
+  "api": "csp_lstv",
+  "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/zgfyw.js"
+},  
   
     {
   "key": "xxqgys",
