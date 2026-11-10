@@ -4,7 +4,8 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/6
 let appConfig = {
     ver: 1,
     title: '233动漫',
-    site: 'https://www.233dm.com',
+    // 默认主域名
+    site: 'https://www.233dm.com', 
     tabs: [
         { name: '日漫', ext: { id: '1' } },
         { name: '国漫', ext: { id: '2' } },
@@ -15,26 +16,128 @@ let appConfig = {
     ],
 };
 
+// 备用域名列表（来自网站底部的防走丢列表）
+const backupSites = [
+    'https://www.166dm.com',
+    'https://www.661dm.com',
+    'https://www.acg2day.com',
+    'https://www.788dm.com',
+    'https://www.jiandandm.com',
+    'https://bgm1.cc'
+];
+
 async function getConfig() {
     return jsonify(appConfig);
 }
 
-async function getCards(ext) {
-    ext = argsify(ext);
-    let cards = [];
-    let { id, page = 1 } = ext;
-    let url = page === 1 ? `${appConfig.site}/type/${id}.html` : `${appConfig.site}/type/${id}-${page}.html`;
-    const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
-    const $ = cheerio.load(data);
+// 处理图片：补全协议、去双斜杠
+function formatCover(url) {
+    if (!url) return '';
+    let cover = url.trim();
+    if (cover.startsWith('//')) cover = 'https:' + cover;
+    if (!/^https?:\/\//i.test(cover)) {
+        cover = appConfig.site + (cover.startsWith('/') ? '' : '/') + cover;
+    }
+    // 去除路径中的双斜杠
+    return cover.replace(/([^:])\/{2,}/g, '$1/');
+}
+
+function parseCards($, cards) {
     $('a[href*="/anime/"]').each((_, element) => {
-        const href = $(element).attr('href');
-        const title = $(element).attr('title');
-        const cover = $(element).attr('data-original');
-        const remark = $(element).find('span:last-child b').text().trim();
-        if (href && title && !cards.some(c => c.vod_id === href)) {
-            cards.push({ vod_id: href, vod_name: title, vod_pic: cover, vod_remarks: remark, ext: { url: `${appConfig.site}${href}` } });
+        const $a = $(element);
+        const href = $a.attr('href');
+        // 兼容 title 和内部文本
+        const title = $a.attr('title') || $a.find('h4 a').attr('title') || $a.text().trim();
+        
+        if (!href || !title) return;
+
+        // 抓取原图
+        let rawCover = $a.attr('data-original') || $a.attr('data-src');
+        if (!rawCover) {
+            const style = $a.attr('style');
+            if (style) {
+                const match = style.match(/url\(['"]?(.*?)['"]?\)/);
+                if (match) rawCover = match[1];
+            }
+        }
+        if (!rawCover) {
+            const $img = $a.find('img');
+            if ($img.length) rawCover = $img.attr('data-original') || $img.attr('data-src') || $img.attr('src');
+        }
+
+        const cover = formatCover(rawCover);
+        let remark = $a.find('span:last-child b').text().trim();
+
+        // 去重
+        let card = cards.find(c => c.vod_id === href);
+        if (!card) {
+            cards.push({
+                vod_id: href,
+                vod_name: title,
+                vod_pic: cover,
+                vod_remarks: remark,
+                ext: { url: `${appConfig.site}${href}` }
+            });
+        } else {
+            if (!card.vod_pic && cover) card.vod_pic = cover;
+            if (!card.vod_remarks && remark) card.vod_remarks = remark;
         }
     });
+    return cards;
+}
+
+async function getCards(ext) {
+    ext = argsify(ext);
+    let { id, page = 1 } = ext;
+    let cards = [];
+
+    // 构建测试列表：把主域名放最前面
+    const testSites = [appConfig.site, ...backupSites];
+    let success = false;
+
+    // 遍历所有域名，直到成功找到包含动漫数据的网页
+    for (let i = 0; i < testSites.length; i++) {
+        let site = testSites[i];
+        let url = page === 1 ? `${site}/type/${id}.html` : `${site}/type/${id}-${page}.html`;
+        
+        try {
+            let res = await $fetch.get(url, { 
+                headers: { 'User-Agent': UA, 'Referer': site + '/' },
+                timeout: 5000 // 5秒超时，防止卡死
+            });
+            
+            let data = res.data;
+            
+            // 如果返回的网页太短（比如反诈页面），或者没有 anime 标签，就跳过换下一个
+            if (data.length > 5000 && data.includes('/anime/')) {
+                const $ = cheerio.load(data);
+                let testCards = parseCards($, []);
+                
+                // 如果真的解析出卡片了，说明这个域名完美可用！
+                if (testCards.length > 0) {
+                    appConfig.site = site; // 把当前可用域名存下来
+                    cards = testCards;
+                    success = true;
+                    break; // 跳出循环
+                }
+            }
+        } catch (e) {
+            // 如果请求报错（SSL错误、连不上等），直接尝试下一个
+            continue;
+        }
+    }
+
+    // 如果所有域名全挂了，返回一个提示卡片
+    if (!success) {
+        return jsonify({ list: [{ 
+            vod_id: "err", 
+            vod_name: "所有域名均被拦截或失效", 
+            vod_pic: "", 
+            vod_remarks: "运营商网络问题", 
+            ext: { url: "" } 
+        }] });
+    }
+
     return jsonify({ list: cards });
 }
 
@@ -44,6 +147,7 @@ async function getTracks(ext) {
     let groups = [];
     const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
     const $ = cheerio.load(data);
+    
     let lines = [];
     $('.channel-tab li a').each((_, el) => {
         const rawText = $(el).text().replace(/\d+$/, '').trim();
@@ -52,6 +156,7 @@ async function getTracks(ext) {
         const lineId = match ? match[1] : '';
         if (rawText && lineId) lines.push({ name: rawText, lineId: lineId });
     });
+    
     for (const line of lines) {
         let tracks = [];
         const container = $(`#playlist${line.lineId}`);
@@ -59,11 +164,13 @@ async function getTracks(ext) {
             const href = $(el).attr('href');
             const text = $(el).text().trim();
             if (href && text && !tracks.some(t => t.ext.url.endsWith(href))) {
+                // 注意：这里的播放链接必须基于当前成功的 appConfig.site
                 tracks.push({ name: text, pan: '', ext: { url: href.startsWith('http') ? href : `${appConfig.site}${href}` } });
             }
         });
         if (tracks.length > 0) groups.push({ title: line.name, tracks: tracks });
     }
+    
     if (groups.length === 0) {
         let tracks = [];
         $('a[href*="/play/"]').each((_, el) => {
@@ -82,19 +189,16 @@ async function getPlayinfo(ext) {
     ext = argsify(ext);
     let url = ext.url;
     let playUrl = '';
-    let isSniffing = false; // 标记是否进入嗅探模式
+    let isSniffing = false;
 
     try {
         const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA, 'Referer': appConfig.site + '/' } });
-        
-        // 1. 优先尝试提取直链 (如果能在源码里找到，直接播放最快)
+
         const directMatch = data.match(/https?:\/\/[^\s"'<>]+\.(?:m3u8|mp4)[^\s"'<>]*/i);
         if (directMatch && !directMatch[0].includes('tiktokcdn')) {
             playUrl = directMatch[0];
-            $print(`[233dm] 发现普通直链: ${playUrl}`);
         }
 
-        // 2. 如果是 TikTok 线路，或者没找到直链，进入“嗅探模式”
         if (!playUrl) {
             const configMatch = data.match(/player_aaaa\s*=\s*({[\s\S]*?})\s*;?\s*<\/script>/);
             if (configMatch) {
@@ -106,13 +210,8 @@ async function getPlayinfo(ext) {
                     if (vid.includes('=') && !vid.startsWith('http')) vid = atob(vid);
                     
                     if (vid && !vid.startsWith('http')) {
-                        // 构造解析页 URL
-                        const parseApi = `https://art.v2player.top:8989/player/?url=${encodeURIComponent(vid)}&next=${encodeURIComponent(url)}&nid=1&h=${encodeURIComponent(appConfig.site)}`;
-                        
-                        // ★★★ 关键改动：不提取链接，直接把解析页 URL 交给播放器嗅探 ★★★
-                        playUrl = parseApi;
+                        playUrl = `https://art.v2player.top:8989/player/?url=${encodeURIComponent(vid)}&next=${encodeURIComponent(url)}&nid=1&h=${encodeURIComponent(appConfig.site)}`;
                         isSniffing = true;
-                        $print(`[233dm] ⚠️ 进入嗅探模式，目标解析页: ${parseApi}`);
                     } else if (vid.startsWith('http')) {
                         playUrl = vid;
                     }
@@ -120,28 +219,18 @@ async function getPlayinfo(ext) {
             }
         }
 
-        // 3. 如果还是没找到，兜底返回原始播放页
         if (!playUrl) {
             playUrl = url;
             isSniffing = true;
-            $print(`[233dm] ⚠️ 未找到任何线索，返回原始播放页进行嗅探`);
         }
 
         if (playUrl) {
-            // 返回结果
-            // type: 1 表示这是需要嗅探的网页/解析页，而不是直接的媒体文件
-            // parse: 1 或 0 取决于框架定义，通常嗅探模式下不需要额外解析
             return jsonify({ 
                 urls: [playUrl], 
                 headers: { 'User-Agent': UA, 'Referer': appConfig.site },
-                // 某些框架支持 extra 字段来强制开启嗅探
-                extra: {
-                    sniff: isSniffing, 
-                    ua: UA
-                }
+                extra: { sniff: isSniffing, ua: UA }
             });
         }
-
     } catch (err) {
         $print(`[233dm] Error: ${err.message}`);
     }
@@ -152,17 +241,27 @@ async function search(ext) {
     ext = argsify(ext);
     let cards = [];
     let text = encodeURIComponent(ext.text);
-    const url = `${appConfig.site}/search/-------------.html?wd=${text}`;
-    const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA } });
-    const $ = cheerio.load(data);
-    $('a[href*="/anime/"]').each((_, element) => {
-        const href = $(element).attr('href');
-        const title = $(element).attr('title');
-        const cover = $(element).attr('data-original');
-        const remark = $(element).find('span:last-child b').text().trim();
-        if (href && title && !cards.some(c => c.vod_id === href)) {
-            cards.push({ vod_id: href, vod_name: title, vod_pic: cover, vod_remarks: remark, ext: { url: `${appConfig.site}${href}` } });
+    
+    // 搜索也应用备用域名容错
+    const testSites = [appConfig.site, ...backupSites];
+    
+    for (let site of testSites) {
+        const url = `${site}/search/-------------.html?wd=${text}`;
+        try {
+            const { data } = await $fetch.get(url, { headers: { 'User-Agent': UA }, timeout: 5000 });
+            if (data.length > 5000 && data.includes('/anime/')) {
+                const $ = cheerio.load(data);
+                let testCards = parseCards($, []);
+                if (testCards.length > 0) {
+                    appConfig.site = site;
+                    cards = testCards;
+                    break;
+                }
+            }
+        } catch (e) {
+            continue;
         }
-    });
+    }
+    
     return jsonify({ list: cards });
 }
