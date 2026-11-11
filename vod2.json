@@ -8,11 +8,11 @@
       "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/233dm.js"
     },
    {
-      "key": "vipjuji",
-      "name": "剧集屋",
+      "key": "4kys",
+      "name": "4K影视",
       "type": 3,
-      "api": "csp_MacCMS",
-      "ext": "https://www.vipjuji.com/api.php/provide/vod/"
+      "api": "csp_4kys",
+      "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/4kys.js"
     }
   ]
 }
