@@ -113,6 +113,13 @@
   "api": "csp_lstv",
   "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/lstv.js"
 },  
+    {
+  "key": "yyy",
+  "name": "央影音TV",
+  "type": 3,
+  "api": "csp_yyy",
+  "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/yyy.js"
+},  
   
     {
   "key": "xxqgys",
