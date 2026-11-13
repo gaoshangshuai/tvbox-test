@@ -24,11 +24,11 @@ let appConfig = {
     site: SITE,
     tabs: [
         { name: '推荐', ext: { pid: 'PG00000022' }, hasMore: false },
+        { name: '电视剧', ext: { cat: '电视剧' } },
+        { name: '纪录片', ext: { cat: '纪录片' } },
         { name: '影视', ext: { pid: 'PG00000021' }, hasMore: false },
         { name: '晚会', ext: { pid: 'PG00000019' }, hasMore: false },
         { name: '全部', ext: { pid: 'PG00000002' }, hasMore: false },
-        { name: '电视剧', ext: { cat: '电视剧' } },
-        { name: '纪录片', ext: { cat: '纪录片' } },
         { name: '诊断', ext: { diag: 1 } }
     ]
 };
