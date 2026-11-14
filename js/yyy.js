@@ -1,7 +1,7 @@
 // ============================================================
-//   XPTV 插件（海报 + 真播放）
-//   列表：PC 站页面配置 JSON —— 海报/标题/cid/vid 齐全
-//   选集：album/v1/playinfo（含完整分集）
+// 央视频 · XPTV 插件（海报 + 真播放）
+//   列表：PC 站页面配置 JSON —— 海报/标题/cid/vid 齐全（整页一次给全，不翻页）
+//   选集：移动端 SSR 页 window.__STATE_video__（纯 JSON，设备端可用）
 //   播放：App 端 playvinfo（cKey 8.1 鉴权 → vkey 直链 mp4）
 // ============================================================
 
@@ -19,17 +19,22 @@ const AES_KEY_HEX = '4E2918885FD98109869D14E0231A0BF4';
 const AES_IV_HEX = '16B17E519DDD0CE5B79D7A63A4DD801C';
 
 let appConfig = {
-    ver: 202611135,
+    ver: 202611147,
     title: '央视频',
     site: SITE,
     tabs: [
         { name: '推荐', ext: { pid: 'PG00000022' }, hasMore: false },
-        { name: '电视剧', ext: { cat: '电视剧' } },
-        { name: '纪录片', ext: { cat: '纪录片' } },
+        { name: '电视剧', ext: { cat: '电视剧' }, hasMore: false },
+        { name: '电影', ext: { cat: '电影' }, hasMore: false },
+        { name: '纪录片', ext: { cat: '纪录片' }, hasMore: false },
+        { name: '栏目', ext: { col: 1 }, hasMore: false },
+        { name: '动画片', ext: { cat: ['动画', '青少'] }, hasMore: false },
         { name: '影视', ext: { pid: 'PG00000021' }, hasMore: false },
         { name: '晚会', ext: { pid: 'PG00000019' }, hasMore: false },
         { name: '全部', ext: { pid: 'PG00000002' }, hasMore: false },
-        { name: '诊断', ext: { diag: 1 } }
+        { name: '微短剧', ext: { cat: '微短剧' }, hasMore: false },
+        { name: '特别节目', ext: { cat: ['特别节目', '世界杯'] }, hasMore: false },  
+        { name: '诊断', ext: { diag: 1 }, hasMore: false }
     ]
 };
 
@@ -279,41 +284,21 @@ function cleanPic(u) {
     return u;
 }
 
-async function cardsFromPage(pid) {
-    let j;
+async function cardsFromPage(pid, limit) {
+    const lim = limit || 1200;
+    let j = null;
     try {
         j = await fetchPage(pid);
     } catch (e) {
-        throw new Error('配置解析失败');
-    }
-    const mods = (j && j.data && j.data.feedModuleList) || [];
-    const cards = [], seen = {};
-    for (let i = 0; i < mods.length; i++) {
-        const list = mods[i].dataList || [];
-        for (let k = 0; k < list.length; k++) {
-            const d = list[k];
-            let id = '', ext = null;
-            if (d.dataType === 'album' && d.cid) { id = 'c' + d.cid; ext = { cid: d.cid, t: d.title }; }
-            else if (d.dataType === 'video' && d.vid) { id = 'v' + d.vid; ext = { vid: d.vid, t: d.title }; }
-            else continue;
-            if (seen[id]) continue;
-            const pic = cleanPic(d.coverUrl);
-            if (!d.title || !pic) continue;
-            seen[id] = 1;
-            let remark = d.subTitle || '';
-            if (d.isVip) remark = (remark ? remark + ' · ' : '') + 'VIP';
-            if (d.updateNum && !d.isVip) remark = remark || ('更新至' + d.updateNum + '集');
-            cards.push({
-                vod_id: ext.cid || ext.vid,
-                vod_name: d.title,
-                vod_pic: pic,
-                vod_remarks: remark,
-                ext: ext
-            });
-            if (cards.length >= 200) return cards;
+        // 残包挽救：配置整体解析失败，但拿到了截断的原始文本
+        if (e.partialTxt) {
+            const items = salvageItems(e.partialTxt).slice(0, lim);
+            log('页面残包挽救(' + pid + '): ' + items.length + ' 条');
+            if (items.length) return items;
         }
+        throw new Error('配置获取失败');
     }
-    return cards;
+    return collectFromModules(j, null).slice(0, lim);
 }
 
 // 有的客户端把二进制当 latin1 字符串给过来，标题会变成 UTF-8 字节流，这里还原
@@ -421,21 +406,72 @@ function parseSearchItems(txt) {
         const pic = cleanPic(mPic[1]);
         if (!pic) continue;
         const title = readTextField(seg);
-        if (!title) continue;
+        // 标题读不出（如设备端把二进制按错误编码解码）时降级保留：
+        // vid/图片 URL 是 ASCII 不受影响，仍可点播，标题用序号占位
+        const nm = title || ('节目 ' + (cards.length + 1));
         cards.push({
             vod_id: items[i].id,
-            vod_name: title.length > 40 ? title.substring(0, 40) : title,
+            vod_name: nm.length > 40 ? nm.substring(0, 40) : nm,
             vod_pic: pic,
-            vod_remarks: '',
+            vod_remarks: title ? '' : '(标题编码异常)',
             ext: { id: items[i].id }
         });
     }
     return cards;
 }
 
-async function cardsFromSearch(kw, page) {
+// 搜索：优先 .json 后缀（纯 JSON，设备端 $fetch 可处理）；
+// protobuf 接口在部分客户端对二进制响应返回空 body（诊断⑦实测 status=200 长度=0）
+function cardsFromSearchJson(d) {
+    const cards = [];
+    const lst = (d && d.data && d.data.list) || [];
+    for (let i = 0; i < lst.length; i++) {
+        const x = lst[i];
+        if (x.dataType === 'album' && Array.isArray(x.albumList)) {
+            for (let k = 0; k < x.albumList.length; k++) {
+                const a = x.albumList[k];
+                // 综合搜索(type=0)封面在 coverUrl；纯专辑搜索(type=2)在 coverHzUrl/coverVtUrl
+                const pic = cleanPic(a.coverUrl || a.coverHzUrl || a.coverVtUrl);
+                if (!a.cid || !a.title || !pic) continue;
+                // 专辑内嵌的 videoList 是该专辑最新一期，直接带上便于播放
+                const fv = (a.videoList && a.videoList[0]) || {};
+                const ext = { cid: a.cid, t: a.title, vip: a.isVip ? 1 : 0 };
+                if (fv.vid) ext.vid = fv.vid;
+                if (fv.duration) ext.dur = Number(fv.duration);
+                cards.push({ vod_id: a.cid, vod_name: String(a.title).replace(/<[^>]+>/g, ''), vod_pic: pic, vod_remarks: a.subTitle || '', ext: ext });
+            }
+        } else if (x.dataType === 'video' && Array.isArray(x.videoList)) {
+            for (let k = 0; k < x.videoList.length; k++) {
+                const v = x.videoList[k];
+                const pic = cleanPic(v.coverUrl);
+                if (!v.vid || !v.title || !pic) continue;
+                cards.push({ vod_id: v.vid, vod_name: String(v.title).replace(/<[^>]+>/g, ''), vod_pic: pic, vod_remarks: v.duration ? durStr(v.duration) : '', ext: { vid: v.vid, t: v.title, dur: Number(v.duration) || 0 } });
+            }
+        }
+    }
+    return cards;
+}
+
+// 秒 → 「xx分xx秒」
+function durStr(s) {
+    s = Number(s) || 0;
+    if (s <= 0) return '';
+    const m = Math.floor(s / 60), ss = s % 60;
+    return m + '分' + (ss < 10 ? '0' + ss : ss) + '秒';
+}
+
+async function cardsFromSearch(kw, page, type) {
     const p = page || 1;
-    const url = 'https://csapi.yangshipin.cn/voapi/omsotm/v2/search?type=0&query=' + encodeURIComponent(kw) + '&page=' + p + '&size=24';
+    const tp = type || 0;   // 0 综合 / 2 纯专辑
+    // ① JSON 版（设备端可用）
+    try {
+        const urlJ = 'https://csapi.yangshipin.cn/voapi/omsotm/v2/search.json?type=' + tp + '&query=' + encodeURIComponent(kw) + '&page=' + p + '&size=30';
+        const resJ = await httpGet(urlJ, UA_PC, 'https://m.yangshipin.cn/');
+        const cards = cardsFromSearchJson(JSON.parse(textOf(resJ)));
+        if (cards.length) return cards;
+    } catch (e) { log('搜索JSON失败: ' + (e && e.message)); }
+    // ② protobuf 版兜底
+    const url = 'https://csapi.yangshipin.cn/voapi/omsotm/v2/search?type=' + tp + '&query=' + encodeURIComponent(kw) + '&page=' + p + '&size=30';
     const res = await httpGet(url, UA_PC, 'https://m.yangshipin.cn/');
     return parseSearchItems(binaryTextOf(res));
 }
@@ -443,60 +479,287 @@ async function cardsFromSearch(kw, page) {
 // 页面配置缓存（同一会话内复用，避免搜索兜底时反复拉 500KB 配置）
 const pageCache = {};
 
+function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+// 拉取页面配置：失败自动重试 3 次；全部失败时把「残包文本」挂在错误上，供挽救逻辑使用
 async function fetchPage(pid) {
     if (pageCache[pid] && Date.now() - pageCache[pid].ts < 600000) return pageCache[pid].j;
-    const url = H_PC + '/page/' + pid + '.json?v=' + Date.now();
-    const res = await httpGet(url, UA_PC, SITE + '/');
-    const j = JSON.parse(textOf(res));
-    pageCache[pid] = { j: j, ts: Date.now() };
-    return j;
+    let lastTxt = '', lastErr = null;
+    for (let a = 0; a < 3; a++) {
+        if (a) await sleep(300 * a);
+        try {
+            const url = H_PC + '/page/' + pid + '.json?v=' + Date.now() + (a ? 'x' + a : '');
+            const res = await httpGet(url, UA_PC, SITE + '/');
+            const txt = textOf(res);
+            try {
+                const j = JSON.parse(txt);
+                pageCache[pid] = { j: j, ts: Date.now() };
+                return j;
+            } catch (e) {
+                lastTxt = txt;
+                lastErr = new Error('JSON解析失败(收到' + txt.length + '字符)');
+                log('页面配置解析失败(' + pid + ' 第' + (a + 1) + '次) len=' + txt.length);
+            }
+        } catch (e) { lastErr = e; }
+    }
+    const err = new Error('配置获取失败: ' + ((lastErr && lastErr.message) || '未知'));
+    if (lastTxt && lastTxt.length > 200) err.partialTxt = lastTxt;   // 残包交给挽救逻辑
+    throw err;
 }
 
-// 电视剧/纪录片等分类：聚合各页面配置里标题匹配的模块（纯 JSON，不依赖二进制接口）
-const CAT_PAGES = ['PG00000021', 'PG00000002', 'PG00000022', 'PG00000020'];
+// ---------- 残包挽救：JSON 解析失败（响应被截断）时，用正则从原始文本里抠出卡片 ----------
+function unesc(s) {
+    return String(s).replace(/\\u002[fF]/g, '/').replace(/\\\//g, '/').replace(/\\"/g, '"');
+}
 
-async function cardsFromCategory(kw) {
-    const cards = [], seen = {};
-    for (let i = 0; i < CAT_PAGES.length; i++) {
-        let j;
-        try { j = await fetchPage(CAT_PAGES[i]); } catch (e) { continue; }
-        const mods = (j && j.data && j.data.feedModuleList) || [];
-        for (let m = 0; m < mods.length; m++) {
-            const nm = String(mods[m].moduleName || mods[m].title || mods[m].name || '');
-            if (!nm || nm.indexOf(kw) < 0) continue;
-            const list = mods[m].dataList || [];
-            for (let k = 0; k < list.length; k++) {
-                const d = list[k];
-                let id = '', ext = null;
-                if (d.dataType === 'album' && d.cid) { id = 'c' + d.cid; ext = { cid: d.cid, t: d.title }; }
-                else if (d.dataType === 'video' && d.vid) { id = 'v' + d.vid; ext = { vid: d.vid, t: d.title }; }
-                else continue;
-                if (seen[id]) continue;
-                const pic = cleanPic(d.coverUrl);
-                if (!d.title || !pic) continue;
-                seen[id] = 1;
-                let remark = d.subTitle || '';
-                if (d.isVip) remark = (remark ? remark + ' · ' : '') + 'VIP';
-                cards.push({ vod_id: ext.cid || ext.vid, vod_name: d.title, vod_pic: pic, vod_remarks: remark, ext: ext });
-                if (cards.length >= 200) return cards;
-            }
+// 从一段原始 JSON 文本里抠出所有「带标题+封面」的专辑/视频条目
+// 注意：线上 JSON 冒号后带空格（"cid": "xxx"），正则必须允许空白
+function salvageItems(txt) {
+    const out = [], seen = {};
+    if (!txt || txt.length < 200) return out;
+    // 专辑：找 "cid": "xxxx"
+    let re = /"cid":\s*"([a-z0-9]{5,24})"/g, m;
+    while ((m = re.exec(txt)) !== null) {
+        const win = txt.slice(Math.max(0, m.index - 400), m.index + 600);
+        const t = /"title":\s*"((?:[^"\\]|\\.){1,120})"/.exec(win);
+        const p = /"coverUrl":\s*"([^"]{10,300})"/.exec(win);
+        if (!t || !p) continue;
+        const id = 'c' + m[1];
+        if (seen[id]) continue;
+        const pic = cleanPic(unesc(p[1]));
+        if (!pic) continue;
+        seen[id] = 1;
+        out.push({ vod_id: m[1], vod_name: unesc(t[1]), vod_pic: pic, vod_remarks: '', ext: { cid: m[1], t: unesc(t[1]) } });
+    }
+    // 视频：找 "vid": "xxxx"（vidNum 等带引号值才匹配，数字字段不受影响）
+    re = /"vid":\s*"([a-z0-9]{5,24})"/g;
+    while ((m = re.exec(txt)) !== null) {
+        const win = txt.slice(Math.max(0, m.index - 400), m.index + 600);
+        const t = /"title":\s*"((?:[^"\\]|\\.){1,120})"/.exec(win);
+        const p = /"coverUrl":\s*"([^"]{10,300})"/.exec(win);
+        if (!t || !p) continue;
+        const id = 'v' + m[1];
+        if (seen[id]) continue;
+        const pic = cleanPic(unesc(p[1]));
+        if (!pic) continue;
+        seen[id] = 1;
+        out.push({ vod_id: m[1], vod_name: unesc(t[1]), vod_pic: pic, vod_remarks: '', ext: { vid: m[1], t: unesc(t[1]) } });
+    }
+    return out;
+}
+
+// 从页面配置 JSON 里按关键词收集卡片（模块名匹配任一关键词；exs 为排除词）
+function collectFromModules(j, kws, exs) {
+    const mods = (j && j.data && j.data.feedModuleList) || [];
+    const cards = [];
+    for (let m = 0; m < mods.length; m++) {
+        const nm = String(mods[m].moduleName || mods[m].title || mods[m].name || '');
+        if (!nm) continue;
+        if (kws && kws.length) {
+            let matched = false;
+            for (let x = 0; x < kws.length; x++) { if (nm.indexOf(kws[x]) >= 0) { matched = true; break; } }
+            if (!matched) continue;
+        }
+        if (exs && exs.length) {
+            let excluded = false;
+            for (let x = 0; x < exs.length; x++) { if (nm.indexOf(exs[x]) >= 0) { excluded = true; break; } }
+            if (excluded) continue;
+        }
+        const list = mods[m].dataList || [];
+        for (let k = 0; k < list.length; k++) {
+            const d = list[k];
+            let ext = null;
+            if (d.dataType === 'album' && d.cid) ext = { cid: d.cid, t: d.title, vip: d.isVip ? 1 : 0 };
+            else if (d.dataType === 'video' && d.vid) ext = { vid: d.vid, t: d.title, vip: d.isVip ? 1 : 0 };
+            else continue;
+            const pic = cleanPic(d.coverUrl);
+            if (!d.title || !pic) continue;
+            let remark = d.subTitle || '';
+            if (d.isVip) remark = (remark ? remark + ' · ' : '') + 'VIP';
+            if (d.updateNum && !d.isVip) remark = remark || ('更新至' + d.updateNum + '集');
+            cards.push({ vod_id: ext.cid || ext.vid, vod_name: d.title, vod_pic: pic, vod_remarks: remark, ext: ext });
         }
     }
     return cards;
 }
 
+// ---------- 分类定义：关键词 + 排除词 + 所需页面（实测映射） ----------
+// 页面配置是编辑精选（每模块 8~50 条），这里用宽关键词聚合多个页面里的相关模块，
+// 并按条目去重。实测条数：电视剧≈216 电影≈188 动画片≈80 微短剧≈83 纪录片≈82
+const CAT_DEF = {
+    '电视剧': { kws: ['电视剧', '剧荒', '好剧', '大剧', '追剧', '热播'], ex: ['微短剧', '短剧'], pages: ['PG00000021', 'PG00000002', 'PG00000022'] },
+    '电影': { kws: ['电影', '影片', '光影', '影院', '放映厅'], ex: [], pages: ['PG00000021', 'PG00000002', 'PG00000022'] },
+    '纪录片': { kws: ['纪录片', '纪录', '纪实'], ex: [], pages: ['PG00000021', 'PG00000002', 'PG00000022'] },
+    '动画片': { kws: ['动画', '动漫', '国漫', '青少', '童年', '益智', '卡通'], ex: [], pages: ['PG00000002', 'PG00000022', 'PG00000019'] },
+    '微短剧': { kws: ['微短剧', '短剧'], ex: [], pages: ['PG00000021', 'PG00000002', 'PG00000022'] },
+    '特别节目': { kws: ['特别节目', '世界杯'], ex: [], pages: ['PG00000023'] }
+};
+// tab 传入的别名 → 归一到 CAT_DEF 主键
+const CAT_ALIAS = { '动画': '动画片', '青少': '动画片', '世界杯': '特别节目' };
+const CAT_PAGES_DEFAULT = ['PG00000021', 'PG00000002', 'PG00000022', 'PG00000023'];   // 兜底
+
+function catDefFor(kws) {
+    for (let i = 0; i < kws.length; i++) {
+        const key = CAT_ALIAS[kws[i]] || kws[i];
+        if (CAT_DEF[key]) return CAT_DEF[key];
+        // 模糊兼容（如客户端把数组拼成 "动画,青少"）
+        for (const k in CAT_DEF) {
+            if (kws[i].indexOf(k) >= 0 || k.indexOf(kws[i]) >= 0) return CAT_DEF[k];
+        }
+    }
+    return null;
+}
+
+// 分类聚合：并行拉取所需页面（单个失败不影响其他），失败且有残包时挽救
+async function cardsFromCategory(kw, limit) {
+    const tabKws = Array.isArray(kw) ? kw : [kw];
+    const def = catDefFor(tabKws);
+    const kws = def ? def.kws : tabKws;
+    const exs = def ? def.ex : [];
+    const pids = def ? def.pages : CAT_PAGES_DEFAULT;
+    const lim = limit || 600;
+    const results = await Promise.all(pids.map(function (pid) {
+        return fetchPage(pid).then(function (j) { return { pid: pid, j: j }; })
+            .catch(function (e) { return { pid: pid, err: e, partial: e.partialTxt || '' }; });
+    }));
+    const cards = [], seen = {};
+    for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        let items = [];
+        if (r.j) {
+            items = collectFromModules(r.j, kws, exs);
+        } else if (r.partial) {
+            // 残包挽救：按 moduleId 切出模块段，段内任一标题命中关键词即挽救
+            // （页面配置里 dataList 在模块 title 之前，所以不能只看第一个 title）
+            const segs = r.partial.split(/"moduleId":\s*"(MD[0-9]+)"/);
+            for (let s = 1; s < segs.length; s += 2) {
+                const seg = segs[s + 1] || '';
+                const titles = seg.match(/"title":\s*"((?:[^"\\]|\\.){1,80})"/g) || [];
+                let matched = false;
+                for (let ti = 0; ti < titles.length; ti++) {
+                    const nm = unesc(/"title":\s*"((?:[^"\\]|\\.){1,80})"/.exec(titles[ti])[1]);
+                    for (let x = 0; x < kws.length; x++) { if (nm.indexOf(kws[x]) >= 0) { matched = true; break; } }
+                    if (matched) break;
+                }
+                if (!matched) continue;
+                items = items.concat(salvageItems(seg));
+            }
+            log('栏目残包挽救(' + r.pid + '): ' + items.length + ' 条');
+        }
+        for (let k = 0; k < items.length && cards.length < lim; k++) {
+            const key = String(items[k].vod_id);
+            if (seen[key]) continue;
+            seen[key] = 1;
+            cards.push(items[k]);
+        }
+        if (cards.length >= lim) break;
+    }
+    return cards;
+}
+
+// 各频道实际可入库条数（实测）：PG22=269 PG21=379 PG19=326 PG02=1109 PG20=2337
+const LIST_HISTORY = {};   // 栏目最近一次返回的指纹，用于识别客户端的重复翻页请求
+
+// ---------- 栏目 tab：页面配置里的 column 条目聚合 + 常用栏目补充 ----------
+// column 条目自带 lid/期数/封面（新闻联播/中国新闻/海峡两岸等，实测 25 个去重栏目）。
+// 页面配置中没有的常用栏目用关键词补充；点击栏目卡片 → 搜索该栏目 → 近期各期直接可播。
+const COLUMN_EXTRA = ['今日说法', '焦点访谈', '朝闻天下', '新闻30分', '星光大道', '动物世界', '人与自然', '走遍中国', '探索发现', '中国诗词大会', '典籍里的中国', '经典咏流传', '开讲啦'];
+
+async function cardsFromColumns() {
+    const pids = ['PG00000002', 'PG00000020', 'PG00000021', 'PG00000022', 'PG00000023', 'PG00000019'];
+    const results = await Promise.all(pids.map(function (pid) {
+        return fetchPage(pid).then(function (j) { return j; }).catch(function (e) { return null; });
+    }));
+    const seen = {}, raw = [];
+    for (let i = 0; i < results.length; i++) {
+        const j = results[i];
+        if (!j) continue;
+        const mods = (j.data && j.data.feedModuleList) || [];
+        for (let m = 0; m < mods.length; m++) {
+            const list = mods[m].dataList || [];
+            for (let k = 0; k < list.length; k++) {
+                const d = list[k];
+                if (!d || d.dataType !== 'column' || !d.title) continue;
+                if (seen[d.title]) continue;
+                seen[d.title] = 1;
+                raw.push({
+                    title: String(d.title),
+                    pic: cleanPic(d.coverUrl),
+                    lid: String(d.lid || d.action && d.action.targetId || ''),
+                    updateNum: Number(d.updateNum) || 0,
+                    periods: String(d.periods || '')
+                });
+            }
+        }
+    }
+    raw.sort(function (a, b) { return b.updateNum - a.updateNum; });
+    const cards = [];
+    for (let i = 0; i < raw.length; i++) {
+        const c = raw[i];
+        let remark = c.periods ? '最新 ' + c.periods : '';
+        if (c.updateNum) remark += (remark ? ' · ' : '') + '更新' + c.updateNum + '期';
+        cards.push({ vod_id: 'col_' + c.lid + '_' + c.title, vod_name: c.title, vod_pic: c.pic, vod_remarks: remark, ext: { kw: c.title, lid: c.lid } });
+    }
+    for (let i = 0; i < COLUMN_EXTRA.length; i++) {
+        const t = COLUMN_EXTRA[i];
+        if (seen[t]) continue;
+        cards.push({ vod_id: 'colk_' + t, vod_name: t, vod_pic: '', vod_remarks: '栏目', ext: { kw: t } });
+    }
+    return cards;
+}
+
+const PID_LIMITS = {
+    PG00000022: 320,
+    PG00000021: 420,
+    PG00000019: 380,
+    PG00000002: 1200,
+    PG00000020: 800,
+    PG00000023: 720
+};
+
 async function getCards(ext) {
     ext = parseExt(ext);
+    // ext 兼容：部分客户端会把数组型 ext 拼成字符串（如 "动画,青少"）
+    if (typeof ext.cat === 'string' && /[,，、|]/.test(ext.cat)) ext.cat = ext.cat.split(/[,，、|]/);
+    // 翻页保护：数据源是「整页配置」，一次就能给全，没有真正的第 2 页。
+    // 若客户端仍然请求 page>=2（老 tab 未标记 hasMore 时会这样），必须返回空数组，
+    // 否则同一批数据会被反复追加，界面上表现为「就这十几个一直循环」。
+    const pg = Number(ext.page || ext.pg || 0);
+    if (pg > 1) return JSON.stringify({ list: [], hasMore: false, pagecount: 1 });
+    // ext 解析失败时不要乱走搜索分支，直接给空列表
+    if (ext.col === undefined && !ext.diag && !ext.pid && !ext.cat && !ext.kw) return JSON.stringify({ list: [], hasMore: false, pagecount: 1 });
+
     let cards = [];
     try {
         if (ext.diag) cards = await diagnosticCards();
-        else if (ext.pid) cards = await cardsFromPage(ext.pid);
-        else if (ext.cat) cards = await cardsFromCategory(ext.cat);
-        else cards = await cardsFromSearch(ext.kw || '纪录片', ext.page || 1);
+        else if (ext.pid) cards = await cardsFromPage(ext.pid, PID_LIMITS[ext.pid] || 400);
+        else if (ext.cat) cards = await cardsFromCategory(ext.cat, 600);
+        else if (ext.col !== undefined) cards = await cardsFromColumns();
+        else cards = await cardsFromSearch(ext.kw, 1);
     } catch (e) {
         log('取列表失败: ' + (e && e.message));
     }
-    return JSON.stringify({ list: cards });
+    // 最终去重（按 vod_id，其次按标题），并明确告知客户端没有更多页
+    const out = [], seen = {};
+    for (let i = 0; i < cards.length; i++) {
+        const c = cards[i] || {};
+        const key = String(c.vod_id || '') || ('t:' + String(c.vod_name || ''));
+        if (seen[key]) continue;
+        seen[key] = 1;
+        out.push(c);
+    }
+    // 重复请求兜底：极短时间内又请求同一栏目且返回内容完全相同 → 视为客户端在"翻页"，
+    // 直接给空数组让它停下，避免同一批卡片被反复追加（否则会无限循环）。
+    const ck = String(ext.diag !== undefined ? 'd' + ext.diag : (ext.pid || (ext.col !== undefined ? 'col' : (ext.cat ? 'c:' + ext.cat : 'k:' + ext.kw))));
+    const sig = out.length + '|' + out.slice(0, 8).map(function (c) { return String(c.vod_id); }).join(',');
+    const now = Date.now();
+    const prev = LIST_HISTORY[ck];
+    if (prev && prev.sig === sig && now - prev.ts < 1500) {
+        LIST_HISTORY[ck] = { sig: sig, ts: now };
+        return JSON.stringify({ list: [], hasMore: false, pagecount: 1 });
+    }
+    LIST_HISTORY[ck] = { sig: sig, ts: now };
+    return JSON.stringify({ list: out, hasMore: false, pagecount: 1 });
 }
 
 // ==================== 选集 ====================
@@ -531,6 +794,19 @@ async function ssrEps(cid, vid) {
 
 // 剧集列表兜底：protobuf 接口（部分客户端对二进制响应返回空，此时上面的 SSR 已先命中）
 async function albumEps(cid) {
+    // ① JSON 版（设备端可用）：/album/v1/playinfo.json
+    try {
+        const urlJ = H_CS + '/album/v1/playinfo.json?cid=' + cid + '&ts=' + Math.floor(Date.now() / 1000);
+        const resJ = await httpGet(urlJ, UA_PC, SITE + '/');
+        const data = (JSON.parse(textOf(resJ)) || {}).data || {};
+        const vl = data.videoList || [];
+        const epsJ = [];
+        for (let i = 0; i < vl.length; i++) {
+            if (vl[i] && vl[i].vid) epsJ.push({ vid: vl[i].vid, title: String(vl[i].title || '') });
+        }
+        if (epsJ.length) return epsJ;
+    } catch (e) { log('选集JSON失败: ' + (e && e.message)); }
+    // ② protobuf 版兜底
     const url = H_CS + '/album/v1/playinfo?cid=' + cid + '&ts=' + Math.floor(Date.now() / 1000);
     const res = await httpGet(url, UA_PC, SITE + '/');
     const txt = binaryTextOf(res);
@@ -552,6 +828,33 @@ function epName(title, i) {
     return t.length > 22 ? t.substring(0, 22) : t;
 }
 
+// VIP 选集过滤：逐集实测可播性（并发6/批）。
+// 只删除「服务端明确回 em=100（完全锁死）」的集；
+// 返回播放地址（含"可试看5分钟"的VIP集）→ 保留；
+// 请求异常/超时/限流等无法判定的情况 → 一律保留，避免误删正常剧集。
+// 集数上限 120，超过则不测（避免加载过久）；全部锁死时保留原列表兜底。
+async function filterPlayable(eps) {
+    const res = new Array(eps.length);
+    const CH = 6;
+    for (let i = 0; i < eps.length; i += CH) {
+        const batch = eps.slice(i, i + CH);
+        await Promise.all(batch.map(async function (ep, k) {
+            let keep = true;              // 默认保留（失败也不删）
+            try {
+                let j = await playvinfo(ep.vid, null, 'fhd');
+                let u = pickUrl(j);
+                if (!u && j && j.tm) { j = await playvinfo(ep.vid, Number(j.tm), 'fhd'); u = pickUrl(j); }
+                if (u) keep = true;
+                else if (j && Number(j.em) === 100) keep = false;   // 确认锁死才删
+            } catch (e) { keep = true; }
+            res[i + k] = keep;
+        }));
+    }
+    const out = [];
+    for (let i = 0; i < eps.length; i++) if (res[i]) out.push(eps[i]);
+    return out;
+}
+
 async function getTracks(ext) {
     ext = parseExt(ext);
     // 诊断卡片：点进详情页显示完整诊断文本
@@ -562,6 +865,78 @@ async function getTracks(ext) {
         if (d && d.lines.length) return JSON.stringify({ list: [{ title: d.name, tracks: d.lines.map(function (l) { return { name: l, ext: { diagText: 1 } }; }) }] });
         return JSON.stringify({ list: [{ title: '诊断', tracks: [{ name: '(无内容，请回到诊断栏目刷新后重进)', ext: {} }] }] });
     }
+    // 栏目卡片（栏目 tab）：取该栏目的各期正片
+    // 正片来源 = 纯专辑搜索（type=2）：央视栏目每期发布为一个专辑（标题=栏目名+期数日期），
+    // 专辑内嵌 videoList[0] 即当期正片（约 20-30 分钟），带 vid 可直接播放
+    // 旧方案的教训：综合搜索排前面的是 3 分钟剧透短视频，必须用专辑搜索 + 时长过滤
+    if (ext.kw) {
+        const kwS = String(ext.kw);
+        let tracksKw = [];
+        try {
+            // ① 纯专辑搜索翻 2 页（size=30 → 最多 60 期正片）
+            const albums = [];
+            const seenC = {};
+            for (let p = 1; p <= 2; p++) {
+                let cards = [];
+                try { cards = await cardsFromSearch(kwS, p, 2); } catch (e) { }
+                for (let i = 0; i < cards.length; i++) {
+                    const c = cards[i];
+                    if (!c.ext || !c.ext.cid) continue;
+                    const nm = String(c.vod_name || '');
+                    // 严格匹配：《栏目名》（带书名号）或标题以栏目名开头，
+                    // 避免「内蒙古新闻联播」被当成「新闻联播」的期
+                    if (!(nm.indexOf('《' + kwS + '》') >= 0 || nm.indexOf(kwS) === 0)) continue;
+                    if (seenC[c.ext.cid]) continue;
+                    seenC[c.ext.cid] = 1;
+                    // 期数日期（标题里的 8 位数字），用于倒序排列
+                    const dm = /20\d{6}/.exec(nm);
+                    albums.push({ name: nm, vid: c.ext.vid || '', cid: c.ext.cid, date: dm ? dm[0] : '' });
+                }
+            }
+            albums.sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+            const strip = new RegExp('《[^》]*' + kwS + '[^》]*》\\s*', 'g');
+            for (let i = 0; i < albums.length; i++) {
+                let nm = albums[i].name.replace(/<[^>]+>/g, '').replace(strip, '').trim() || albums[i].name;
+                if (nm.length > 30) nm = nm.substring(0, 30);
+                tracksKw.push({ name: nm, ext: albums[i].vid ? { vid: albums[i].vid } : { cid: albums[i].cid } });
+            }
+        } catch (e) { log('栏目专辑取集失败: ' + (e && e.message)); }
+        // ② 专辑搜索不足 → 综合搜索兜底：专辑全收，视频只留正片（时长≥240秒，3分钟剧透/预告排除）
+        // 第一轮严格匹配；不足 5 条第二轮放宽为「标题含栏目名」（地方台同名栏目也收，总比剧透强）
+        if (tracksKw.length < 5) {
+            try {
+                const cards = await cardsFromSearch(kwS, 1, 0);
+                const seenT = {};
+                for (const strict of [true, false]) {
+                    if (tracksKw.length >= 5) break;
+                    const picked = [];
+                    for (let i = 0; i < cards.length; i++) {
+                        const c = cards[i];
+                        const nm = String(c.vod_name || '').replace(/<[^>]+>/g, '').trim();
+                        if (!nm || seenT[nm]) continue;
+                        const hit = strict ? (nm.indexOf('《' + kwS + '》') >= 0 || nm.indexOf(kwS) === 0) : (nm.indexOf(kwS) >= 0);
+                        if (!hit) continue;
+                        const isAlbum = c.ext && c.ext.cid;
+                        const dur = (c.ext && c.ext.dur) || 0;
+                        if (!isAlbum && dur && dur < 240) continue;   // 短视频=剧透/预告，排除
+                        seenT[nm] = 1;
+                        picked.push({ name: nm, ext: isAlbum ? { cid: c.ext.cid, vid: c.ext.vid || '' } : { vid: c.vod_id } });
+                    }
+                    // 专辑在前，其余按标题长度升序（正片标题短）
+                    picked.sort(function (a, b) { return (b.ext.cid ? 1 : 0) - (a.ext.cid ? 1 : 0) || String(a.name).length - String(b.name).length; });
+                    for (let i = 0; i < picked.length && tracksKw.length < 24; i++) {
+                        let nm = picked[i].name;
+                        if (nm.length > 30) nm = nm.substring(0, 30);
+                        const e2 = picked[i].ext;
+                        tracksKw.push({ name: nm, ext: e2.vid ? { vid: e2.vid } : { cid: e2.cid } });
+                    }
+                }
+            } catch (e) { log('栏目综合兜底失败: ' + (e && e.message)); }
+        }
+        if (!tracksKw.length) tracksKw = [{ name: '（未搜到该栏目的近期节目，可用首页搜索试试）', ext: {} }];
+        return JSON.stringify({ list: [{ title: '各期正片', tracks: tracksKw }] });
+    }
+
     const id = ext.id || ext.cid || ext.vid || '';
     const cid = ext.cid || '';
     const vid0 = ext.vid || '';
@@ -575,14 +950,28 @@ async function getTracks(ext) {
         for (const fn of tries) {
             try {
                 const eps = await fn();
+                const seenVid = {};
                 for (let i = 0; i < eps.length; i++) {
-                    tracks.push({ name: epName(eps[i].title, i), ext: { vid: eps[i].vid } });
+                    const v = eps[i].vid;
+                    if (!v || seenVid[v]) continue;    // 同一 vid 只保留一次，避免选集重复
+                    seenVid[v] = 1;
+                    tracks.push({ name: epName(eps[i].title, i), ext: { vid: v } });
                 }
                 if (tracks.length) break;
             } catch (e) { log('取选集失败: ' + (e && e.message)); }
         }
         // 非专辑（单视频）：只有 vid 且 SSR/protobuf 都没给出列表时按正片处理
         if (!tracks.length && !cid && vid0) tracks = [{ name: '正片', ext: { vid: vid0 } }];
+    }
+    // VIP 专辑：剔除完全锁死（无法播放）的集数，保留可试看的 VIP 集
+    if (tracks.length && ext.vip && tracks.length <= 120) {
+        try {
+            const kept = await filterPlayable(tracks.map(t => ({ vid: t.ext.vid, name: t.name })));
+            if (kept.length) {
+                log('VIP过滤: ' + tracks.length + ' 集 → 保留 ' + kept.length + ' 集(含试看)');
+                tracks = kept.map(e => ({ name: e.name, ext: { vid: e.vid } }));
+            }
+        } catch (e) { log('VIP过滤失败: ' + (e && e.message)); }
     }
     if (!tracks.length) return JSON.stringify({ list: [] });
     return JSON.stringify({ list: [{ title: '选集', tracks: tracks }] });
@@ -886,6 +1275,17 @@ async function diagnosticCards() {
         ], pic));
     } catch (e) { out.push(dCard('⑦ 搜索接口', ['❌ 抛错: ' + (e && e.message)], pic)); }
 
+    // ⑧ 栏目取集实测：直接跑「栏目→专辑搜索→各期正片」完整链路，看真实返回
+    try {
+        const r8 = JSON.parse(await getTracks({ kw: '今日说法' }));
+        const tr8 = (r8.list && r8.list[0] && r8.list[0].tracks) || [];
+        const names8 = tr8.slice(0, 3).map(function (t) { return String(t.name).substring(0, 20); });
+        out.push(dCard('⑧ 栏目取集实测(今日说法)', [
+            tr8.length + ' 期' + (names8.length ? '，如: ' + names8.join(' / ') : ''),
+            tr8.length ? '✅ 链路正常（各期应为「期数+标题」，非3分钟剧透）' : '❌ 专辑搜索链路在设备端失败'
+        ], pic));
+    } catch (e) { out.push(dCard('⑧ 栏目取集实测(今日说法)', ['❌ 抛错: ' + (e && e.message)], pic)); }
+
     return out;
 }
 
@@ -893,17 +1293,18 @@ async function diagnosticCards() {
 async function searchFromPages(text) {
     const cards = [], seen = {};
     const kw = String(text).toLowerCase();
-    for (let i = 0; i < CAT_PAGES.length && cards.length < 60; i++) {
+    const pages = CAT_PAGES_DEFAULT;
+    for (let i = 0; i < pages.length && cards.length < 60; i++) {
         let j;
-        try { j = await fetchPage(CAT_PAGES[i]); } catch (e) { continue; }
+        try { j = await fetchPage(pages[i]); } catch (e) { continue; }
         const mods = (j && j.data && j.data.feedModuleList) || [];
         for (let m = 0; m < mods.length; m++) {
             const list = mods[m].dataList || [];
             for (let k = 0; k < list.length; k++) {
                 const d = list[k];
                 let id = '', ext = null;
-                if (d.dataType === 'album' && d.cid) { id = 'c' + d.cid; ext = { cid: d.cid, t: d.title }; }
-                else if (d.dataType === 'video' && d.vid) { id = 'v' + d.vid; ext = { vid: d.vid, t: d.title }; }
+                if (d.dataType === 'album' && d.cid) { id = 'c' + d.cid; ext = { cid: d.cid, t: d.title, vip: d.isVip ? 1 : 0 }; }
+                else if (d.dataType === 'video' && d.vid) { id = 'v' + d.vid; ext = { vid: d.vid, t: d.title, vip: d.isVip ? 1 : 0 }; }
                 else continue;
                 if (seen[id]) continue;
                 const pic = cleanPic(d.coverUrl);
@@ -921,7 +1322,10 @@ async function searchFromPages(text) {
 async function search(ext) {
     ext = parseExt(ext);
     const text = ext.wd || ext.text || ext.kw || '';
-    if (!text) return JSON.stringify({ list: [] });
+    if (!text) return JSON.stringify({ list: [], hasMore: false, pagecount: 1 });
+    // 同样做翻页保护，避免搜索页无限追加重复结果
+    const pg = Number(ext.page || ext.pg || 1);
+    if (pg > 1) return JSON.stringify({ list: [], hasMore: false, pagecount: 1 });
     let cards = [];
     try { cards = await cardsFromSearch(text, 1); } catch (e) { log('搜索失败: ' + (e && e.message)); }
     if (cards.length < 3) {
@@ -930,10 +1334,18 @@ async function search(ext) {
             if (alt.length > cards.length) cards = alt;
         } catch (e) { }
     }
-    return JSON.stringify({ list: cards });
+    const out = [], seen = {};
+    for (let i = 0; i < cards.length; i++) {
+        const c = cards[i] || {};
+        const key = String(c.vod_id || '') || ('t:' + String(c.vod_name || ''));
+        if (seen[key]) continue;
+        seen[key] = 1;
+        out.push(c);
+    }
+    return JSON.stringify({ list: out, hasMore: false, pagecount: 1 });
 }
 
 // 便于本地测试；XPTV 里 module 不存在会跳过
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { getConfig, getCards, getTracks, getPlayinfo, search, makeCKey, aesCbcHex, parseSearchItems, albumEps, utf8Fix };
+    module.exports = { getConfig, getCards, getTracks, getPlayinfo, search, makeCKey, aesCbcHex, parseSearchItems, albumEps, utf8Fix, salvageItems, collectFromModules, unesc, cardsFromCategory, fetchPage, catDefFor, playvinfo, pickUrl, cardsFromSearch, cardsFromSearchJson };
 }
