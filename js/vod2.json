@@ -120,6 +120,14 @@
   "api": "csp_yyy",
   "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/yyy.js"
 },  
+    {
+  "key": "sjtv",
+  "name": "手机电视",
+  "type": 3,
+  "api": "csp_sjtv",
+  "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/gaoshangshuai/tvbox-test/refs/heads/main/js/sjtv.js"
+},  
+    
   
     {
   "key": "xxqgys",
