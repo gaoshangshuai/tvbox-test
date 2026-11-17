@@ -1,5 +1,5 @@
 /* ============================================================================
- * CCTV(全能版) - 支持经典大剧、特别节目分类，以及动态签名
+ * CCTV(全能版) - 经典大剧 / 拍案说法 / 科教名栏 / 大片来袭 / 档案纪实 / 金牌栏目 / 百家讲坛
  * ==========================================================================*/
 
 const CryptoJS = (typeof createCryptoJS === 'function') ? createCryptoJS() : null
@@ -18,8 +18,13 @@ let appConfig = {
     title: 'CCTV(全能版)',
     site: CFG.site,
     tabs: [
-        { name: '经典大剧', ext: { type: 'drama' } },
-        { name: '特别节目', ext: { type: 'live', id: '31813' } } // 👈 新增的分类
+        { name: '经典大剧', ext: { type: 'drama' } }, 
+        { name: '拍案说法', ext: { type: 'live', id: '31813' }, ui: 1 },
+        { name: '科教名栏', ext: { type: 'home_page', id: '32170' }, ui: 1 },
+        { name: '大片来袭', ext: { type: 'blockbuster', id: '6407' }, ui: 1 },
+        { name: '档案纪实', ext: { type: 'home_page', id: '19821' }, ui: 1 },
+        { name: '金牌栏目', ext: { type: 'home_page', id: '9689' }, ui: 1 },
+        { name: '百家讲坛', ext: { type: 'home_page', id: '13206' }, ui: 1 } // 👈 新增：百家讲坛
     ],
 }
 
@@ -72,11 +77,56 @@ function https(u) { return String(u || '').replace(/^http:\/\//i, 'https://') }
 function failList(msg) { return JSON.stringify({ list: [{ title: '获取失败', tracks: [{ name: msg, ext: {} }] }] }) }
 
 /* ============================ 3. 业务函数 ============================ */
+
+// 提取通用的 home.jsp 页面解析逻辑（科教名栏、档案纪实、金牌栏目、百家讲坛共用）
+async function getHomePageCards(nodeId) {
+    const path = `/cntv/resource/cltv2/home.jsp?nodeId=${nodeId}`
+    const j = await apiGet(path, { referer: `${CFG.site}/yctv/special?nodeId=${nodeId}`, origin: CFG.site })
+    
+    if (j.resultCode !== '0000') {
+        return JSON.stringify({ list: [{ vod_id: "err", vod_name: "接口返回失败: " + j.resultMsg, vod_pic: "", vod_remarks: "", ext: {} }] })
+    }
+
+    let cards = []
+    
+    // 1. 解析顶部横幅海报 (posterList)
+    if (j.posterList && j.posterList.length > 0) {
+        j.posterList.forEach(e => {
+            cards.push({
+                vod_id: String(e.videoId || e.objectId || Math.random()),
+                vod_name: e.name || e.videoOriginalTitle || '精彩推荐',
+                vod_pic: https(e.imageURL),
+                vod_remarks: e.totalTime || "海报推荐",
+                ext: { id: String(e.videoId || e.objectId), dataType: '3', requestURL: e.requestURL }
+            })
+        })
+    }
+
+    // 2. 解析分类列表 (classifyList)
+    if (j.classifyList && j.classifyList.length > 0) {
+        j.classifyList.forEach(classify => {
+            if (classify.recommnedList && classify.recommnedList.length > 0) {
+                classify.recommnedList.forEach(e => {
+                    cards.push({
+                        vod_id: String(e.videoId || e.objectId || Math.random()),
+                        vod_name: e.name || e.videoOriginalTitle || '精彩栏目',
+                        vod_pic: https(e.imageURL),
+                        vod_remarks: e.updateDesc || "栏目推荐",
+                        ext: { id: String(e.videoId || e.objectId), dataType: '3', requestURL: e.requestURL }
+                    })
+                })
+            }
+        })
+    }
+    return JSON.stringify({ list: cards })
+}
+
 async function getCards(ext) {
     const o = toObj(ext)
-    const type = o.type || 'drama'
+    const type = o.type || 'live'
     const page = Number(o.page || 1)
 
+    // 1. 经典大剧
     if (type === 'drama') {
         if (page > 1) return JSON.stringify({ list: [] })
         const cards = [
@@ -86,8 +136,8 @@ async function getCards(ext) {
         ]
         return JSON.stringify({ list: cards })
     } 
+    // 2. 拍案说法 (原特别节目)
     else if (type === 'live') {
-        // 🚨 特别节目列表解析 (himg.jsp)
         const nodeId = o.id || '31813'
         const path = `/cntv/resource/cltv2/himg.jsp?nodeId=${nodeId}&start=${page}`
         const j = await apiGet(path, h5Headers())
@@ -99,23 +149,56 @@ async function getCards(ext) {
         const list = j.recommnedList || []
         const cards = list.map(e => ({
             vod_id: String(e.contId || e.videoId || e.srcContId),
-            vod_name: e.name || e.videoOriginalTitle || '特别节目',
+            vod_name: e.name || e.videoOriginalTitle || '拍案说法',
             vod_pic: https(e.imageURL),
             vod_remarks: e.totalTime || "精彩推荐",
             ext: { id: String(e.contId || e.videoId || e.srcContId), dataType: '3' }
         }))
         return JSON.stringify({ list: cards })
     }
+    // 3. 大片来袭
+    else if (type === 'blockbuster') {
+        const nodeId = o.id || '6407'
+        const path = `/cntv/resource/cltv2/himg.jsp?nodeId=${nodeId}&start=${page}`
+        const j = await apiGet(path, h5Headers())
+        
+        if (j.resultCode !== '0000') {
+            return JSON.stringify({ list: [{ vod_id: "err", vod_name: "大片接口请求失败:" + j.resultMsg, vod_pic: "", vod_remarks: "", ext: {} }] })
+        }
+
+        const list = j.recommnedList || []
+        if (list.length === 0) return JSON.stringify({ list: [] })
+
+        const cards = list.map(e => ({
+            vod_id: String(e.contId || e.videoId || e.SRC_CONT_ID),
+            vod_name: e.name || e.videoOriginalTitle || '大片',
+            vod_pic: https(e.imageURL),
+            vod_remarks: e.updateDesc || "大片推荐",
+            ext: { id: String(e.videoId || e.contId || e.SRC_CONT_ID), dataType: '3' }
+        }))
+        return JSON.stringify({ list: cards })
+    }
+    // 4. home.jsp 类多级页面 (科教名栏、档案纪实、金牌栏目、百家讲坛)
+    else if (type === 'home_page') {
+        return await getHomePageCards(o.id)
+    }
     return JSON.stringify({ list: [] })
 }
 
 async function getTracks(ext) {
     const o = toObj(ext)
-    const contId = String(o.id || o.contId || '')
-    if (!contId) return failList('缺少 contId')
+    let contId = String(o.id || o.contId || '')
+    let requestURL = o.requestURL
+    
+    if (!requestURL && contId) {
+        requestURL = `/cntv/resource/cltv2/dramaDetailPage.jsp?contId=${contId}&dataType=3`
+    } else if (requestURL) {
+        requestURL = requestURL.replace(CFG.site, '')
+    }
 
-    // 无论是电视剧还是特别节目，抓取详情页的逻辑是一样的
-    let j = await apiGet(`/cntv/resource/cltv2/dramaDetailPage.jsp?contId=${encodeURIComponent(contId)}&dataType=3`, h5Headers(contId))
+    if (!requestURL) return failList('缺少 contId 或 requestURL')
+
+    let j = await apiGet(requestURL, h5Headers(contId))
     if (j.resultCode !== '0000') return failList(`接口报错: ${j.resultMsg}`)
 
     const items = (j.dramaList && j.dramaList.length) ? j.dramaList : (j.termList && j.termList.length) ? j.termList : []
@@ -129,7 +212,6 @@ async function getTracks(ext) {
             })
         })
     } else if (j.dramaInfo && j.dramaInfo.playContId) {
-         // 单集特别节目可能直接在 dramaInfo 里
          tracks.push({
             name: cleanName(j.dramaInfo.videoOriginalTitle || j.dramaInfo.name || '正片'),
             ext: { playContId: String(j.dramaInfo.playContId), contId: String(j.dramaInfo.contId || contId), dataType: '3' }
@@ -164,7 +246,6 @@ async function getPlayinfo(ext) {
     if (!pid && contId) pid = await resolvePlayContId(contId, '3')
     if (!pid) return JSON.stringify({ urls: [], msg: '缺少 playContId（剧集数据异常）' })
 
-    // 统一走取流接口
     let j = await apiGet(`/cntv/clt/getPlayUrl.msp?contId=${encodeURIComponent(pid)}&dataType=3`, h5Headers(contId))
     
     if (j.resultCode !== '0000') {
@@ -191,7 +272,6 @@ async function getPlayinfo(ext) {
 }
 
 async function search(ext) {
-    // 搜索功能保持原样
     let wd = '', page = 1
     const o = toObj(ext)
     if (typeof ext === 'string' && !o.wd) wd = ext.trim()
