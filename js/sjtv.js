@@ -1,5 +1,5 @@
 /* ============================================================================
- * CCTV(全能版) - 经典大剧 / 拍案说法 / 科教名栏 / 大片来袭 / 档案纪实 / 金牌栏目 / 百家讲坛
+ * CCTV(全能版) - 电视看名著 / 拍案说法 / 科教名栏 / 大片来袭 / 档案纪实 / 金牌栏目 / 百家讲坛
  * ==========================================================================*/
 
 const CryptoJS = (typeof createCryptoJS === 'function') ? createCryptoJS() : null
@@ -18,13 +18,13 @@ let appConfig = {
     title: 'CCTV(全能版)',
     site: CFG.site,
     tabs: [
-        { name: '经典大剧', ext: { type: 'drama' } }, 
+        { name: '电视看名著', ext: { type: 'drama' } }, 
         { name: '拍案说法', ext: { type: 'live', id: '31813' }, ui: 1 },
         { name: '科教名栏', ext: { type: 'home_page', id: '32170' }, ui: 1 },
         { name: '大片来袭', ext: { type: 'blockbuster', id: '6407' }, ui: 1 },
         { name: '档案纪实', ext: { type: 'home_page', id: '19821' }, ui: 1 },
         { name: '金牌栏目', ext: { type: 'home_page', id: '9689' }, ui: 1 },
-        { name: '百家讲坛', ext: { type: 'home_page', id: '13206' }, ui: 1 } // 👈 新增：百家讲坛
+        { name: '百家讲坛', ext: { type: 'home_page', id: '13206' }, ui: 1 }
     ],
 }
 
@@ -78,20 +78,25 @@ function failList(msg) { return JSON.stringify({ list: [{ title: '获取失败',
 
 /* ============================ 3. 业务函数 ============================ */
 
-// 提取通用的 home.jsp 页面解析逻辑（科教名栏、档案纪实、金牌栏目、百家讲坛共用）
-async function getHomePageCards(nodeId) {
-    const path = `/cntv/resource/cltv2/home.jsp?nodeId=${nodeId}`
+// 🚨 核心逻辑：统一过滤 VIP 和 会员内容
+function isVip(e) {
+    return (e.cornerLabelName && (e.cornerLabelName.includes('会员') || e.cornerLabelName.includes('VIP'))) || 
+           e.vipSubscriptType === '1';
+}
+
+// 提取通用的 home.jsp 页面解析逻辑，支持翻页
+async function getHomePageCards(nodeId, page = 1) {
+    const path = `/cntv/resource/cltv2/home.jsp?nodeId=${nodeId}&start=${page}`
     const j = await apiGet(path, { referer: `${CFG.site}/yctv/special?nodeId=${nodeId}`, origin: CFG.site })
     
-    if (j.resultCode !== '0000') {
-        return JSON.stringify({ list: [{ vod_id: "err", vod_name: "接口返回失败: " + j.resultMsg, vod_pic: "", vod_remarks: "", ext: {} }] })
-    }
+    if (j.resultCode !== '0000') return []
 
     let cards = []
     
-    // 1. 解析顶部横幅海报 (posterList)
-    if (j.posterList && j.posterList.length > 0) {
+    // 只有第一页才解析海报
+    if (page === 1 && j.posterList && j.posterList.length > 0) {
         j.posterList.forEach(e => {
+            if (isVip(e)) return; // 过滤VIP
             cards.push({
                 vod_id: String(e.videoId || e.objectId || Math.random()),
                 vod_name: e.name || e.videoOriginalTitle || '精彩推荐',
@@ -102,51 +107,75 @@ async function getHomePageCards(nodeId) {
         })
     }
 
-    // 2. 解析分类列表 (classifyList)
     if (j.classifyList && j.classifyList.length > 0) {
         j.classifyList.forEach(classify => {
             if (classify.recommnedList && classify.recommnedList.length > 0) {
                 classify.recommnedList.forEach(e => {
+                    if (isVip(e)) return; // 过滤VIP
+                    if (!e.name && !e.imageURL) return; // 过滤空节点
                     cards.push({
                         vod_id: String(e.videoId || e.objectId || Math.random()),
                         vod_name: e.name || e.videoOriginalTitle || '精彩栏目',
                         vod_pic: https(e.imageURL),
-                        vod_remarks: e.updateDesc || "栏目推荐",
+                        vod_remarks: e.updateDesc || classify.name || "栏目推荐",
                         ext: { id: String(e.videoId || e.objectId), dataType: '3', requestURL: e.requestURL }
                     })
                 })
             }
         })
     }
-    return JSON.stringify({ list: cards })
+    return cards
 }
 
 async function getCards(ext) {
     const o = toObj(ext)
-    const type = o.type || 'live'
+    const type = o.type || 'drama'
     const page = Number(o.page || 1)
 
-    // 1. 经典大剧
+    // 1. 电视看名著 (四大名著专属海报和链接)
     if (type === 'drama') {
         if (page > 1) return JSON.stringify({ list: [] })
         const cards = [
-            { vod_id: '3523153', vod_name: '西游记', vod_pic: 'https://ydvodnyun.cctv4g.com/mnt/data/remote/vod/vod/523/2021/09/02/144345/picture/ys0812ycxy00_cntv_H53_sc.jpg', vod_remarks: '25集全', ext: { id: '3523153', dataType: '3' } },
-            { vod_id: '4822954', vod_name: '海天雄鹰', vod_pic: 'https://ydvodnyun.cctv4g.com/cntv/image/0/813/616.jpg', vod_remarks: '35集全', ext: { id: '4822954', dataType: '3' } },
-            { vod_id: '4655707', vod_name: '江河之上', vod_pic: 'https://ydvodnyun.cctv4g.com/cntv/image/0/650/43.jpg', vod_remarks: '34集全', ext: { id: '4655707', dataType: '3' } }
+            { 
+                vod_id: '1771665', 
+                vod_name: '红楼梦', 
+                vod_pic: 'https://image-1.verycd.com/c87e4e598e658981e6ba2bf3206a7eba154253/post-116121-1127819568.jpg', 
+                vod_remarks: '36集全', 
+                ext: { id: '1771665', dataType: '3', requestURL: "https://m.cctv5g.com/cntv/resource/cltv2/dramaDetailPage.jsp?objectContId=1771665&contId=1771665&dataType=3" } 
+            },
+            { 
+                vod_id: '3523153', 
+                vod_name: '西游记', 
+                vod_pic: 'https://pic.rmb.bdstatic.com/bjh/news/9eee678551e4f029374ba93b06a9dcd7.jpeg', 
+                vod_remarks: '25集全', 
+                ext: { id: '3523153', dataType: '3', requestURL: "https://m.cctv5g.com/cntv/resource/cltv2/dramaDetailPage.jsp?contId=3523153&dataType=3" } 
+            },
+            { 
+                vod_id: '1773244', 
+                vod_name: '三国演义', 
+                vod_pic: 'https://pic.rmb.bdstatic.com/bjh/down/t27-b_D8hcACU0Gqrv8aeAa59ee9eb12023650346280d623d509c3.jpg?for=bg', 
+                vod_remarks: '84集全', 
+                ext: { id: '1773244', dataType: '3', requestURL: "https://m.cctv5g.com/cntv/resource/cltv2/dramaDetailPage.jsp?objectContId=1773244&contId=1773244&dataType=3" } 
+            },
+            { 
+                vod_id: '1773240', 
+                vod_name: '水浒传', 
+                vod_pic: 'https://pic.rmb.bdstatic.com/bjh/cms/250126/8c187e26bab08d059ab8cb401ed7e0f1_1737882836.6305_330.png', 
+                vod_remarks: '43集全', 
+                ext: { id: '1773240', dataType: '3', requestURL: "https://m.cctv5g.com/cntv/resource/cltv2/dramaDetailPage.jsp?objectContId=1773240&contId=1773240&dataType=3" } 
+            }
         ]
         return JSON.stringify({ list: cards })
     } 
-    // 2. 拍案说法 (原特别节目)
+    // 2. 拍案说法
     else if (type === 'live') {
         const nodeId = o.id || '31813'
         const path = `/cntv/resource/cltv2/himg.jsp?nodeId=${nodeId}&start=${page}`
         const j = await apiGet(path, h5Headers())
         
-        if (j.resultCode !== '0000') {
-            return JSON.stringify({ list: [{ vod_id: "err", vod_name: "请求失败:" + j.resultMsg, vod_pic: "", vod_remarks: "", ext: {} }] })
-        }
+        if (j.resultCode !== '0000') return JSON.stringify({ list: [] })
 
-        const list = j.recommnedList || []
+        const list = (j.recommnedList || []).filter(e => !isVip(e))
         const cards = list.map(e => ({
             vod_id: String(e.contId || e.videoId || e.srcContId),
             vod_name: e.name || e.videoOriginalTitle || '拍案说法',
@@ -162,11 +191,9 @@ async function getCards(ext) {
         const path = `/cntv/resource/cltv2/himg.jsp?nodeId=${nodeId}&start=${page}`
         const j = await apiGet(path, h5Headers())
         
-        if (j.resultCode !== '0000') {
-            return JSON.stringify({ list: [{ vod_id: "err", vod_name: "大片接口请求失败:" + j.resultMsg, vod_pic: "", vod_remarks: "", ext: {} }] })
-        }
+        if (j.resultCode !== '0000') return JSON.stringify({ list: [] })
 
-        const list = j.recommnedList || []
+        const list = (j.recommnedList || []).filter(e => !isVip(e))
         if (list.length === 0) return JSON.stringify({ list: [] })
 
         const cards = list.map(e => ({
@@ -180,7 +207,9 @@ async function getCards(ext) {
     }
     // 4. home.jsp 类多级页面 (科教名栏、档案纪实、金牌栏目、百家讲坛)
     else if (type === 'home_page') {
-        return await getHomePageCards(o.id)
+        // 完全恢复百家讲坛的正常列表，支持无限下拉！
+        const cards = await getHomePageCards(o.id, page)
+        return JSON.stringify({ list: cards })
     }
     return JSON.stringify({ list: [] })
 }
@@ -196,16 +225,18 @@ async function getTracks(ext) {
         requestURL = requestURL.replace(CFG.site, '')
     }
 
-    if (!requestURL) return failList('缺少 contId 或 requestURL')
+    if (!requestURL) return JSON.stringify({ list: [] })
 
     let j = await apiGet(requestURL, h5Headers(contId))
-    if (j.resultCode !== '0000') return failList(`接口报错: ${j.resultMsg}`)
+    if (j.resultCode !== '0000') return JSON.stringify({ list: [] }) 
 
     const items = (j.dramaList && j.dramaList.length) ? j.dramaList : (j.termList && j.termList.length) ? j.termList : []
     const tracks = []
     
     if (items.length) {
         items.forEach((e, i) => {
+            // 过滤掉带会员标记的剧集
+            if (isVip(e)) return;
             tracks.push({
                 name: cleanName(e.dramaName || e.name || `第${i + 1}集`),
                 ext: { playContId: String(e.playContId || ''), contId: String(e.contId || e.videoId || ''), dataType: '3' }
@@ -216,10 +247,9 @@ async function getTracks(ext) {
             name: cleanName(j.dramaInfo.videoOriginalTitle || j.dramaInfo.name || '正片'),
             ext: { playContId: String(j.dramaInfo.playContId), contId: String(j.dramaInfo.contId || contId), dataType: '3' }
         })
-    } else {
-        tracks.push({ name: '该节目暂无剧集数据', ext: {} })
     }
-
+    
+    if (tracks.length === 0) return JSON.stringify({ list: [] })
     return JSON.stringify({ list: [{ title: cleanName((j.dramaInfo || {}).name) || '默认剧集', tracks }] })
 }
 
@@ -244,13 +274,11 @@ async function getPlayinfo(ext) {
     let contId = String(o.contId || o.id || '')
 
     if (!pid && contId) pid = await resolvePlayContId(contId, '3')
-    if (!pid) return JSON.stringify({ urls: [], msg: '缺少 playContId（剧集数据异常）' })
+    if (!pid) return JSON.stringify({ urls: [] }) 
 
     let j = await apiGet(`/cntv/clt/getPlayUrl.msp?contId=${encodeURIComponent(pid)}&dataType=3`, h5Headers(contId))
     
-    if (j.resultCode !== '0000') {
-        return JSON.stringify({ urls: [], msg: `取流失败 ${j.resultCode}: ${j.resultMsg || ''}` })
-    }
+    if (j.resultCode !== '0000') return JSON.stringify({ urls: [] })
 
     const urls = []
     const list = j.playUrls || []
@@ -267,7 +295,7 @@ async function getPlayinfo(ext) {
         if (m) urls.push(https(m[0].replace(/\\\//g, '/').replace(/\\/g, '')))
     }
     
-    if (!urls.length) return JSON.stringify({ urls: [], msg: '该集暂无可播放地址' })
+    if (!urls.length) return JSON.stringify({ urls: [] })
     return JSON.stringify({ urls })
 }
 
@@ -283,7 +311,7 @@ async function search(ext) {
     if (j.resultCode !== '0000') return JSON.stringify({ list: [] })
 
     const src = (j.searchResult && j.searchResult.contentList) || []
-    const list = src.map(e => ({
+    const list = src.filter(e => !isVip(e)).map(e => ({
         vod_id: String(e.contId || e.progId || e.videoId || ''),
         vod_name: cleanName(e.contName || e.videoOriginalTitle || e.name),
         vod_pic: https(e.imageURL),
