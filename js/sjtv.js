@@ -18,7 +18,7 @@ let appConfig = {
     title: 'CCTV(全能版)',
     site: CFG.site,
     tabs: [
-        { name: '电视看名著', ext: { type: 'drama' }, ui: 1  }, 
+        { name: '电视看名著', ext: { type: 'drama' } }, 
         { name: '拍案说法', ext: { type: 'live', id: '31813' }, ui: 1 },
         { name: '科教名栏', ext: { type: 'home_page', id: '32170' }, ui: 1 },
         { name: '大片来袭', ext: { type: 'blockbuster', id: '6407' }, ui: 1 },
