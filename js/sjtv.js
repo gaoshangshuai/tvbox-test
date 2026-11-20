@@ -18,7 +18,7 @@ let appConfig = {
     title: 'CCTV(全能版)',
     site: CFG.site,
     tabs: [
-        { name: '电视看名著', ext: { type: 'drama' } }, 
+        { name: '电视看名著', ext: { type: 'drama' }, ui: 1  }, 
         { name: '拍案说法', ext: { type: 'live', id: '31813' }, ui: 1 },
         { name: '科教名栏', ext: { type: 'home_page', id: '32170' }, ui: 1 },
         { name: '大片来袭', ext: { type: 'blockbuster', id: '6407' }, ui: 1 },
@@ -93,7 +93,6 @@ async function getHomePageCards(nodeId, page = 1) {
 
     let cards = []
     
-    // 只有第一页才解析海报
     if (page === 1 && j.posterList && j.posterList.length > 0) {
         j.posterList.forEach(e => {
             if (isVip(e)) return; // 过滤VIP
@@ -127,15 +126,34 @@ async function getHomePageCards(nodeId, page = 1) {
     return cards
 }
 
+// 🚨 核心功能：为写死的卡片获取真实的封面和集数
+async function getSmartCardData(keyword, fallbackPic) {
+    try {
+        const res = await apiGet(`/cntv/resource/cltv2/search.jsp?k=${encodeURIComponent(keyword)}&start=0`)
+        if (res.resultCode === '0000' && res.searchResult && res.searchResult.contentList.length > 0) {
+            const first = res.searchResult.contentList[0]
+            return {
+                id: String(first.contId || first.videoId || ''),
+                pic: first.imageURL ? https(first.imageURL) : fallbackPic,
+                remarks: first.updateDesc || first.publishTime || '单集',
+                requestURL: first.requestURL || ''
+            }
+        }
+    } catch(e) {}
+    return { id: keyword, pic: fallbackPic, remarks: '搜索', requestURL: '' }
+}
+
 async function getCards(ext) {
     const o = toObj(ext)
     const type = o.type || 'drama'
     const page = Number(o.page || 1)
 
-    // 1. 电视看名著 (四大名著专属海报和链接)
+    // 1. 电视看名著
     if (type === 'drama') {
         if (page > 1) return JSON.stringify({ list: [] })
-        const cards = [
+        
+        // 先设置基本的名著卡片
+        let cards = [
             { 
                 vod_id: '1771665', 
                 vod_name: '红楼梦', 
@@ -163,8 +181,31 @@ async function getCards(ext) {
                 vod_pic: 'https://pic.rmb.bdstatic.com/bjh/cms/250126/8c187e26bab08d059ab8cb401ed7e0f1_1737882836.6305_330.png', 
                 vod_remarks: '43集全', 
                 ext: { id: '1773240', dataType: '3', requestURL: "https://m.cctv5g.com/cntv/resource/cltv2/dramaDetailPage.jsp?objectContId=1773240&contId=1773240&dataType=3" } 
+            },
+            { 
+                vod_id: '4043486', 
+                vod_name: '西游奇谭', 
+                vod_pic: 'https://ydvodnyun.cctv4g.com/mnt/data/remote/vod/vod/523/2023/01/31/175545/picture/ydcm20230131001zfjrxzf2_cntv_H53_sc.jpg', 
+                vod_remarks: '803集全', 
+                ext: { id: '4043486', dataType: '3', requestURL: "https://m.cctv5g.com/cntv/resource/cltv2/dramaDetailPage.jsp?objectContId=4043486&contId=4043486&dataType=3" } 
             }
         ]
+
+        // 使用智能搜索，实时获取“百家说故事”、“古典文学”等卡片的真实集数和封面
+        const defaultPic = 'https://pic.rmb.bdstatic.com/bjh/news/9eee678551e4f029374ba93b06a9dcd7.jpeg'
+        const smartKeywords = ['百家说故事', '西游记解疑', '古典文学', '吴承恩与西游记']
+        
+        for (let kw of smartKeywords) {
+            let smartData = await getSmartCardData(kw, defaultPic)
+            cards.push({
+                vod_id: smartData.id,
+                vod_name: kw,
+                vod_pic: smartData.pic,
+                vod_remarks: smartData.remarks, // 显示实时获取到的集数
+                ext: { id: smartData.id, dataType: '3', requestURL: smartData.requestURL }
+            })
+        }
+
         return JSON.stringify({ list: cards })
     } 
     // 2. 拍案说法
@@ -205,9 +246,8 @@ async function getCards(ext) {
         }))
         return JSON.stringify({ list: cards })
     }
-    // 4. home.jsp 类多级页面 (科教名栏、档案纪实、金牌栏目、百家讲坛)
+    // 4. home.jsp 类多级页面
     else if (type === 'home_page') {
-        // 完全恢复百家讲坛的正常列表，支持无限下拉！
         const cards = await getHomePageCards(o.id, page)
         return JSON.stringify({ list: cards })
     }
@@ -219,10 +259,11 @@ async function getTracks(ext) {
     let contId = String(o.id || o.contId || '')
     let requestURL = o.requestURL
     
-    if (!requestURL && contId) {
-        requestURL = `/cntv/resource/cltv2/dramaDetailPage.jsp?contId=${contId}&dataType=3`
-    } else if (requestURL) {
+    // 如果拿到的已经是真实的详情地址，直接用
+    if (requestURL) {
         requestURL = requestURL.replace(CFG.site, '')
+    } else if (contId) {
+        requestURL = `/cntv/resource/cltv2/dramaDetailPage.jsp?contId=${contId}&dataType=3`
     }
 
     if (!requestURL) return JSON.stringify({ list: [] })
@@ -235,8 +276,7 @@ async function getTracks(ext) {
     
     if (items.length) {
         items.forEach((e, i) => {
-            // 过滤掉带会员标记的剧集
-            if (isVip(e)) return;
+            if (isVip(e)) return; // 过滤VIP
             tracks.push({
                 name: cleanName(e.dramaName || e.name || `第${i + 1}集`),
                 ext: { playContId: String(e.playContId || ''), contId: String(e.contId || e.videoId || ''), dataType: '3' }
