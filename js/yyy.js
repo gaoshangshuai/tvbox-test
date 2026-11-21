@@ -28,13 +28,12 @@ let appConfig = {
         { name: '电视剧', ext: { cat: '电视剧' }, hasMore: false },
         { name: '电影', ext: { cat: '电影' }, hasMore: false },
         { name: '纪录片', ext: { cat: '纪录片' }, hasMore: false },
+        { name: '微短剧', ext: { cat: '微短剧' }, hasMore: false },
         { name: '动画片', ext: { cat: ['动画', '青少'] }, hasMore: false,ui:1 },
         { name: '晚会', ext: { pid: 'PG00000019' }, hasMore: false,ui:1 }
 // ============================================================
 // { name: '影视', ext: { pid: 'PG00000021' }, hasMore: false },
-
 // { name: '全部', ext: { pid: 'PG00000002' }, hasMore: false },
-// { name: '微短剧', ext: { cat: '微短剧' }, hasMore: false },
 // { name: '特别节目', ext: { cat: ['特别节目', '世界杯'] }, hasMore: false },    
 // { name: '诊断', ext: { diag: 1 }, hasMore: false }   
 // ============================================================    
