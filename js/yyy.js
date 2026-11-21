@@ -19,22 +19,25 @@ const AES_KEY_HEX = '4E2918885FD98109869D14E0231A0BF4';
 const AES_IV_HEX = '16B17E519DDD0CE5B79D7A63A4DD801C';
 
 let appConfig = {
-    ver: 202611147,
+    ver: 202611149,
     title: '央视频',
     site: SITE,
     tabs: [
-        { name: '推荐', ext: { pid: 'PG00000022' }, hasMore: false },
+        { name: '推荐', ext: { pid: 'PG00000022' }, hasMore: false,ui:1 },
+        { name: '金牌栏目', ext: { col: 1 }, hasMore: false,ui:1 },
         { name: '电视剧', ext: { cat: '电视剧' }, hasMore: false },
         { name: '电影', ext: { cat: '电影' }, hasMore: false },
         { name: '纪录片', ext: { cat: '纪录片' }, hasMore: false },
-        { name: '栏目', ext: { col: 1 }, hasMore: false },
-        { name: '动画片', ext: { cat: ['动画', '青少'] }, hasMore: false },
-        { name: '影视', ext: { pid: 'PG00000021' }, hasMore: false },
-        { name: '晚会', ext: { pid: 'PG00000019' }, hasMore: false },
-        { name: '全部', ext: { pid: 'PG00000002' }, hasMore: false },
-        { name: '微短剧', ext: { cat: '微短剧' }, hasMore: false },
-        { name: '特别节目', ext: { cat: ['特别节目', '世界杯'] }, hasMore: false },  
-        { name: '诊断', ext: { diag: 1 }, hasMore: false }
+        { name: '动画片', ext: { cat: ['动画', '青少'] }, hasMore: false,ui:1 },
+        { name: '晚会', ext: { pid: 'PG00000019' }, hasMore: false,ui:1 }
+// ============================================================
+// { name: '影视', ext: { pid: 'PG00000021' }, hasMore: false },
+
+// { name: '全部', ext: { pid: 'PG00000002' }, hasMore: false },
+// { name: '微短剧', ext: { cat: '微短剧' }, hasMore: false },
+// { name: '特别节目', ext: { cat: ['特别节目', '世界杯'] }, hasMore: false },    
+// { name: '诊断', ext: { diag: 1 }, hasMore: false }   
+// ============================================================    
     ]
 };
 
@@ -665,6 +668,100 @@ const LIST_HISTORY = {};   // 栏目最近一次返回的指纹，用于识别�
 // 页面配置中没有的常用栏目用关键词补充；点击栏目卡片 → 搜索该栏目 → 近期各期直接可播。
 const COLUMN_EXTRA = ['今日说法', '焦点访谈', '朝闻天下', '新闻30分', '星光大道', '动物世界', '人与自然', '走遍中国', '探索发现', '中国诗词大会', '典籍里的中国', '经典咏流传', '开讲啦'];
 
+// 栏目 lid 映射（m 站栏目详情分页接口用，扫描 h5access 10000-11200 段所得）
+const COL_LID = {
+    '今日说法': 10031, '焦点访谈': 10151, '新闻联播': 10492, '新闻调查': 10490, '面对面': 10497,
+    '新闻1+1': 10526, '新闻周刊': 10508, '世界周刊': 10509, '法治在线': 10501, '法治深壹度': 10478,
+    '一线': 10003, '天网': 10019, '庭审现场': 10027, '忏悔录': 10122, '律师来了': 10083,
+    '热线12': 10074, '法律讲堂(生活版)': 10066, '法律讲堂(文史版)': 10070, '普法栏目剧': 10511,
+    '道德观察(日播版)': 10119, '守护明天': 10480, '现场': 10479, '生命线': 10366, '中国法治观察': 10817,
+    '星光大道': 10073, '人与自然': 10287, '走遍中国': 10050, '开讲啦': 10044, '典籍里的中国': 10681,
+    '中国诗词大会': 10812, '非常6+1': 10030, '越战越勇': 10038, '等着我': 10067, '黄金100秒': 10043,
+    '开门大吉': 10045, '向幸福出发': 10169, '回声嘹亮': 10053, '天天把歌唱': 10167, '群英汇': 10293,
+    '幸福账单': 10192, '朗读者': 10064, '故事里的中国': 10473, '国家宝藏': 10175, '中国地名大会': 10493,
+    '中国书法大会': 10704, '你好生活': 10512, '经典': 10323, '健康之路': 10013,
+    '生活圈': 10347, '生活提示': 10156, '职场健康课': 10131, '中华医药': 10023, '地理·中国': 10114,
+    '天下足球': 10016, '篮球公园': 10271, '足球之夜': 10622, '城市1对1': 10331, '海峡两岸': 10140,
+    '今日关注': 10029, '今日亚洲': 10136, '中国舆论场': 10011, '环球视线': 10523, '经济半小时': 10225,
+    '生财有道': 10135, '消费主张': 10062, '央视财经评论': 10583, '深度财经': 10308, '每周质量报告': 10507,
+    '我爱发明': 10266, '致富经': 10269, '记住乡愁2026（4K）': 10036, '远方的家': 10047, '乐游天下': 10202,
+    '味道': 10469, '回家吃饭': 10354, '美食中国': 10433, '中华民族': 10161, '华人世界': 10262,
+    '华人故事': 10518, '外国人在中国': 10316, 'CCTV空中剧院': 10180, '戏曲采风': 10178, '名段欣赏': 10194,
+    '智慧树': 10234, '英雄出少年': 10236, '七巧板': 10004, '小小智慧树': 10024, '快乐大巴': 10244,
+    '动感特区': 10242, '芝麻开门': 10217, '从心开始': 10474, '大家': 10335, '读书': 10116,
+    '见证': 10125, '百家说故事': 10499, '跟着书本去旅行': 10502, '解码科技史': 10258, '考古公开课': 10465,
+    '中国影像方志': 10270, '我的美丽乡村': 10439, '实验现场': 10456, '透视新科技': 10498,
+    '讲武堂': 10207, '军事科技': 10208, '军事纪实': 10205, '军迷行天下': 10381,
+    '世界战史': 10352, '夕阳红': 10226, '小区大事': 10124, '文化十分': 10165
+};
+
+// 官方栏目各期分页接口（m 站详情分享页，group_id=9 固定；vappid/vsecret 为 m 站固定参数）
+// 每期一个专辑：cid + 海报标题（《栏目名》期数 标题），pagesize 最大约 200，offset 可自构造并行翻页
+async function colEpisodesByLid(lid) {
+    const PS = 200, PAGES = 3, OUT = [];
+    const seen = {};
+    const mkUrl = function (off, pn) {
+        return 'https://h5access.yangshipin.cn/web/detail_share_cover_secondpage?targetId=1'
+            + '&vappid=59306155&vsecret=b42702bf7309a179d102f3d51b1add2fda0bc7ada64cb801&raw=1'
+            + '&dataKey=' + encodeURIComponent('group_id=9&h5SecondPage=1&lid=' + lid)
+            + '&vid=&pageContext=' + encodeURIComponent('type=backward&pagesize=' + PS + '&offset=' + off + '&pagenum=' + pn + '&zkey=lid_' + lid + '_' + Math.floor(Date.now() / 1000));
+    };
+    const pages = await Promise.all([0, 1, 2].map(async function (p) {
+        try {
+            const res = await httpGet(mkUrl(p * PS, p + 1), UA_M, 'https://m.yangshipin.cn/');
+            const j = JSON.parse(textOf(res));
+            return (j.data && j.data.coverList) || [];
+        } catch (e) { return []; }
+    }));
+    // 注意：服务器对 pagesize 有 ~191 的实际上限，「不足一页」不代表到底，不能提前 break；
+    // 跨页重复由 seen 去重兜底
+    for (let p = 0; p < pages.length; p++) {
+        const cl = pages[p];
+        for (let i = 0; i < cl.length; i++) {
+            const it = cl[i];
+            const txt = it && it.poster && it.poster.poster && it.poster.poster.firstLine && it.poster.poster.firstLine.text;
+            if (!txt || !it.cid || seen[it.cid]) continue;
+            seen[it.cid] = 1;
+            OUT.push({ name: String(txt).replace(/<[^>]+>/g, '').trim(), cid: String(it.cid) });
+        }
+    }
+    return OUT;
+}
+
+// 无封面栏目 → 实时搜一张最新一期海报（纯专辑搜索 type=2 的封面，会话内缓存）
+const colCoverCache = {};
+async function colCover(kw) {
+    if (colCoverCache[kw] !== undefined) return colCoverCache[kw];
+    let pic = '';
+    try {
+        const cards = await cardsFromSearch(kw, 1, 2);
+        for (let i = 0; i < cards.length; i++) {
+            const nm = String(cards[i].vod_name || '');
+            if (nm.indexOf('《' + kw + '》') >= 0 || nm.indexOf(kw) === 0) {
+                if (cards[i].vod_pic) { pic = cards[i].vod_pic; break; }
+            }
+        }
+    } catch (e) { }
+    colCoverCache[kw] = pic;
+    return pic;
+}
+
+// 给缺封面的栏目卡片补图（并发5/批，避免一次13个搜索把设备端压慢）
+async function fillColCovers(cards) {
+    const need = [];
+    for (let i = 0; i < cards.length; i++) {
+        if (!cards[i].vod_pic && cards[i].ext && cards[i].ext.kw) need.push(i);
+    }
+    const CH = 5;
+    for (let i = 0; i < need.length; i += CH) {
+        const batch = need.slice(i, i + CH);
+        await Promise.all(batch.map(async function (idx) {
+            const pic = await colCover(String(cards[idx].ext.kw));
+            if (pic) cards[idx].vod_pic = pic;
+        }));
+    }
+}
+
 async function cardsFromColumns() {
     const pids = ['PG00000002', 'PG00000020', 'PG00000021', 'PG00000022', 'PG00000023', 'PG00000019'];
     const results = await Promise.all(pids.map(function (pid) {
@@ -703,8 +800,9 @@ async function cardsFromColumns() {
     for (let i = 0; i < COLUMN_EXTRA.length; i++) {
         const t = COLUMN_EXTRA[i];
         if (seen[t]) continue;
-        cards.push({ vod_id: 'colk_' + t, vod_name: t, vod_pic: '', vod_remarks: '栏目', ext: { kw: t } });
+        cards.push({ vod_id: 'colk_' + t, vod_name: t, vod_pic: '', vod_remarks: '栏目', ext: { kw: t, lid: COL_LID[t] || '' } });
     }
+    await fillColCovers(cards);   // 缺封面的栏目实时补一张最新一期海报
     return cards;
 }
 
@@ -871,9 +969,22 @@ async function getTracks(ext) {
     // 旧方案的教训：综合搜索排前面的是 3 分钟剧透短视频，必须用专辑搜索 + 时长过滤
     if (ext.kw) {
         const kwS = String(ext.kw);
+        const lid = Number(ext.lid) || COL_LID[kwS] || 0;
         let tracksKw = [];
-        try {
-            // ① 纯专辑搜索翻 2 页（size=30 → 最多 60 期正片）
+        // ① 官方栏目各期接口（lid）：全量正片（每期一个专辑，最新在前，数百期）
+        if (lid) {
+            try {
+                const eps = await colEpisodesByLid(lid);
+                const stripL = new RegExp('《[^》]*' + kwS + '[^》]*》\\s*', 'g');
+                for (let i = 0; i < eps.length && tracksKw.length < 600; i++) {
+                    let nm = eps[i].name.replace(stripL, '').trim() || eps[i].name;
+                    if (nm.length > 30) nm = nm.substring(0, 30);
+                    tracksKw.push({ name: nm, ext: { cid: eps[i].cid } });
+                }
+            } catch (e) { log('栏目官方接口取集失败: ' + (e && e.message)); }
+        }
+        // ② 官方接口没数据 → 纯专辑搜索翻 2 页（size=30 → 最多 60 期正片）
+        if (!tracksKw.length) {
             const albums = [];
             const seenC = {};
             for (let p = 1; p <= 2; p++) {
@@ -900,8 +1011,8 @@ async function getTracks(ext) {
                 if (nm.length > 30) nm = nm.substring(0, 30);
                 tracksKw.push({ name: nm, ext: albums[i].vid ? { vid: albums[i].vid } : { cid: albums[i].cid } });
             }
-        } catch (e) { log('栏目专辑取集失败: ' + (e && e.message)); }
-        // ② 专辑搜索不足 → 综合搜索兜底：专辑全收，视频只留正片（时长≥240秒，3分钟剧透/预告排除）
+        }
+        // ③ 专辑搜索也不足 → 综合搜索兜底：专辑全收，视频只留正片（时长≥240秒，3分钟剧透/预告排除）
         // 第一轮严格匹配；不足 5 条第二轮放宽为「标题含栏目名」（地方台同名栏目也收，总比剧透强）
         if (tracksKw.length < 5) {
             try {
